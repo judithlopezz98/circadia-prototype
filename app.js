@@ -18,19 +18,46 @@ const state = {
   shifts: [...days], showAddShift: false, pageBeforeAdd: 'Schedule', newShiftType: 'night', toastTimer: null,
 };
 
-const symbols = { Today: '☼', Schedule: '▦', Recovery: '♡', Profile: '♙' };
+const symbols = { Today: 'sun', Schedule: 'calendar', Recovery: 'heart', Profile: 'user' };
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+
+const iconPaths = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/>',
+  heart: '<path d="M20.8 8.8c0 5.5-8.8 11-8.8 11s-8.8-5.5-8.8-11A4.8 4.8 0 0 1 12 6.2a4.8 4.8 0 0 1 8.8 2.6Z"/><path d="M6 12h3l1.5-2.5 3 5 1.5-2.5h3"/>',
+  user: '<circle cx="12" cy="8" r="3.5"/><path d="M5 21v-1.5a7 7 0 0 1 14 0V21"/>',
+  bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+  moon: '<path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z"/>',
+  rotate: '<path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9A7 7 0 0 1 18 6l2 2M4 16l2 2a7 7 0 0 0 12.4-3"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  upload: '<path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>',
+  coffee: '<path d="M5 8h12v8a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8Zm12 2h2a2 2 0 0 1 0 4h-2M8 4v2m4-2v2"/>',
+  bed: '<path d="M3 18v-7m0 4h18v3M3 13h7a3 3 0 0 1 3 3m0-3h5a3 3 0 0 1 3 3M3 20v-2m18 2v-2"/>',
+  sparkle: '<path d="m12 3 1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3Zm7 12 .7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15Z"/>',
+  calm: '<path d="M3 9c2.5-2.5 5.5-2.5 9 0s6.5 2.5 9 0M3 15c2.5-2.5 5.5-2.5 9 0s6.5 2.5 9 0"/>',
+  circle: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17"/>',
+  cycle: '<path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.7 9A7 7 0 0 1 18 6l2 2M4 16l2 2a7 7 0 0 0 12.3-3"/>',
+  building: '<path d="M4 21V5l8-3v19m0-12h8v12M2 21h20M7 7h2m-2 4h2m-2 4h2m7-1h2m-2 4h2"/>',
+  arrow: '<path d="M4 12h15m-6-6 6 6-6 6"/>',
+  arrowLeft: '<path d="M20 12H5m6 6-6-6 6-6"/>',
+  check: '<path d="m5 12 4 4L19 6"/>',
+};
+function icon(name, size = 16) {
+  return `<svg class="ui-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name] || iconPaths.circle}</svg>`;
+}
 
 function statusBar() {
   return `<div class="statusbar"><span>9:41</span><span class="status-icons"><i class="signal"></i><i class="wifi"></i><i class="battery"></i></span></div>`;
 }
 
 function header() {
-  return `<header class="app-header"><div class="brand">circadia</div><button class="icon-button bell-button" data-action="profile" aria-label="Notifications">♧</button></header>`;
+  return `<header class="app-header"><div class="brand">circadia</div><button class="icon-button bell-button" data-action="profile" aria-label="Notifications">${icon('bell', 14)}</button></header>`;
 }
 
 function nav() {
-  return `<nav class="bottom-nav" aria-label="Main navigation">${['Today', 'Schedule', 'Recovery', 'Profile'].map((name) => `<button class="nav-item ${state.tab === name ? 'active' : ''}" data-page="${name}"><span class="nav-icon">${symbols[name]}</span><span>${name}</span></button>`).join('')}</nav>`;
+  return `<nav class="bottom-nav" aria-label="Main navigation">${['Today', 'Schedule', 'Recovery', 'Profile'].map((name) => `<button class="nav-item ${state.tab === name ? 'active' : ''}" data-page="${name}"><span class="nav-icon">${icon(symbols[name], 14)}</span><span>${name}</span></button>`).join('')}</nav>`;
 }
 
 function progress(step) {
@@ -38,25 +65,25 @@ function progress(step) {
 }
 
 function actionButtons(primary, secondary = 'Back') {
-  return `<button class="btn" data-action="next">${primary} <span aria-hidden="true">→</span></button><button class="btn ghost" data-action="back">← ${secondary}</button>`;
+  return `<button class="btn" data-action="next">${primary} <span>${icon('arrow', 12)}</span></button><button class="btn ghost" data-action="back"><span>${icon('arrowLeft', 12)}</span>${secondary}</button>`;
 }
 
 function onboarding() {
-  const top = `<p class="eyebrow">${state.step === 0 ? 'A calmer rhythm starts here' : state.step === 1 ? 'First, a little about you' : state.step === 2 ? 'Your plan starts here' : 'Your next few shifts'}</p>`;
-  if (state.step === 0) return `${progress(0)}<p class="eyebrow">PERSONAL SUPPORT FOR SHIFT WORK</p><h1>Your shifts change. Your recovery plan adapts.</h1><p class="subhead">Practical sleep and recovery support shaped around the shifts you actually work.</p><div class="card callout-blue"><span class="callout-icon">◉</span><div><p class="eyebrow">BUILT FOR ROTATING SHIFTS</p><p class="fine">A calmer rhythm for life between shifts.</p></div></div><button class="btn" data-action="next">Set up my schedule <span>→</span></button>`;
+  if (state.step === 0) return `${progress(0)}<p class="eyebrow">PERSONAL SUPPORT FOR SHIFT WORK</p><h1>Your shifts change. Your recovery plan adapts.</h1><p class="subhead">Practical sleep and recovery support shaped around the shifts you actually work.</p><div class="card callout-blue onboarding-callout"><span class="callout-icon">${icon('heart', 20)}</span><div><p class="eyebrow">BUILT FOR ROTATING SHIFTS</p><p class="fine">More room for your life between shifts.</p></div></div><button class="btn" data-action="next">Set up my schedule <span>${icon('arrow', 17)}</span></button>`;
   if (state.step === 1) {
-    const patterns = [['Day shifts', 'Mostly daytime hours', '☀'], ['Night shifts', 'Mostly overnight hours', '☾'], ['Rotating shifts', 'Different shifts across the week', '◷']];
-    return `${progress(1)}<p class="eyebrow">FIRST, A LITTLE ABOUT YOU</p><h1>What kind of shifts do you work?</h1><p class="subhead">We’ll shape your preview around the way you work.</p>${patterns.map(([name, detail, icon]) => `<button class="option ${state.workPattern === name ? 'selected' : ''}" data-select-pattern="${name}"><span class="option-copy"><span class="option-icon">${icon}</span><span><strong>${name}</strong><small>${detail}</small></span></span><span class="radio"></span></button>`).join('')}<p class="helper">We’ll use your upcoming shifts to time your sleep and recovery guidance.</p><button class="btn" data-action="next">Continue <span>→</span></button><button class="btn ghost" data-action="back">← Back</button>`;
+    const patterns = [['Day shifts', 'Mostly daytime hours', 'sun'], ['Night shifts', 'Mostly overnight hours', 'moon'], ['Rotating shifts', 'Different shifts across the week', 'rotate']];
+    return `${progress(1)}<p class="eyebrow">FIRST, A LITTLE ABOUT YOU</p><h1>What kind of shifts do you work?</h1><p class="subhead">We’ll shape your preview around the way you work.</p>${patterns.map(([name, detail, iconName]) => `<button class="option ${state.workPattern === name ? 'selected' : ''}" data-select-pattern="${name}"><span class="option-copy"><span class="option-icon">${icon(iconName, 14)}</span><span><strong>${name}</strong><small>${detail}</small></span></span><span class="radio"></span></button>`).join('')}<p class="helper">We’ll use your upcoming shifts to time your sleep and recovery guidance.</p><button class="btn" data-action="next">Continue <span>${icon('arrow', 12)}</span></button><button class="btn ghost" data-action="back">← Back</button>`;
   }
   if (state.step === 2) {
-    const methods = [['Connect your calendar', 'Automatically import your upcoming shifts.', '▦'], ['Enter shifts manually', 'Add shifts yourself, one by one.', '＋'], ['Upload a schedule', 'Upload your photo, screenshot, PDF, spreadsheet or WhatsApp screenshot.', '↥']];
-    return `${progress(2)}<p class="eyebrow">YOUR PLAN STARTS HERE</p><h1>Add your upcoming shifts.</h1><p class="subhead">Choose how you received your schedule.</p>${methods.map(([name, detail, icon]) => `<button class="option ${state.rosterMethod === name ? 'selected' : ''}" data-select-method="${name}"><span class="option-copy"><span class="option-icon">${icon}</span><span><strong>${name}</strong><small>${detail}</small></span></span><span class="radio"></span></button>`).join('')}<p class="helper">You’ll review every shift before it appears in your plan.</p><button class="btn" data-action="next">Continue <span>→</span></button><button class="btn ghost" data-action="back">← Back</button>`;
+    const methods = [['Connect your calendar', 'Automatically import your upcoming shifts.', 'calendar'], ['Enter shifts manually', 'Add shifts yourself, one by one.', 'plus'], ['Upload a schedule', 'Upload your photo, screenshot, PDF, spreadsheet or WhatsApp screenshot.', 'upload']];
+    return `${progress(2)}<p class="eyebrow">YOUR PLAN STARTS HERE</p><h1>Add your upcoming shifts.</h1><p class="subhead">Choose how you received your schedule.</p>${methods.map(([name, detail, iconName]) => `<button class="option ${state.rosterMethod === name ? 'selected' : ''}" data-select-method="${name}"><span class="option-copy"><span class="option-icon">${icon(iconName, 14)}</span><span><strong>${name}</strong><small>${detail}</small></span></span><span class="radio"></span></button>`).join('')}<p class="helper">You’ll review every shift before it appears in your plan.</p><button class="btn" data-action="next">Continue <span>${icon('arrow', 12)}</span></button><button class="btn ghost" data-action="back">← Back</button>`;
   }
-  return `${progress(3)}<p class="eyebrow">YOUR NEXT FEW SHIFTS</p><h1>Make it yours.</h1><p class="subhead">Choose a shift to cycle its type, or add another shift. You can update this later.</p><div class="roster-rows">${state.shifts.slice(3).map((shift, i) => shiftEditor(shift, i)).join('')}</div><button class="btn secondary" data-action="add-row">＋ Add another shift</button><div class="card total-card"><p class="eyebrow">ROSTER TOTAL</p><strong>24h scheduled this week</strong></div><button class="btn" data-action="next">Build my plan <span>→</span></button><button class="btn ghost" data-action="back">← Back</button>`;
+  return `${progress(3)}<p class="eyebrow">YOUR NEXT FEW SHIFTS</p><h1>Make it yours.</h1><p class="subhead">Choose a shift to cycle its type, or add another shift. You can update this later.</p><div class="roster-rows">${state.shifts.slice(3).map((shift, i) => shiftEditor(shift, i)).join('')}</div><button class="btn secondary roster-add" data-action="add-row">${icon('plus', 15)} Add another shift</button><div class="card total-card"><p class="eyebrow">ROSTER TOTAL</p><strong>24h scheduled this week</strong></div><button class="btn" data-action="next">Build my plan <span>${icon('arrow', 17)}</span></button><button class="btn ghost" data-action="back">${icon('arrowLeft', 16)} Back</button>`;
 }
 
 function shiftEditor(shift, i) {
-  return `<button class="shift-row editable-shift" data-action="cycle-shift"><span class="date-badge">${escapeHtml(shift.short)}<br>${escapeHtml(shift.date)}</span><span><strong>${escapeHtml(shift.title)}</strong><small>${escapeHtml(shift.time)}</small></span><span class="pill ${shift.type === 'Night Shift' ? 'dark' : shift.type === 'Off' ? 'off' : 'aqua'}">${shift.type === 'Off' ? 'DAY OFF' : shift.type === 'Night Shift' ? '◷ Night' : '☼ Day'}</span><span class="tiny-hours">12h</span></button>`;
+  const isToday = shift.date === '15';
+  return `<button class="shift-row editable-shift ${isToday ? 'roster-today' : ''}" data-action="cycle-shift"><span class="date-badge">${isToday ? '<em>TODAY</em>' : ''}<span>${escapeHtml(shift.short)}</span><strong>${escapeHtml(shift.date)}</strong></span><span class="roster-shift-name"><strong>${escapeHtml(shift.title)}</strong><small>${shift.type === 'Off' ? '–' : escapeHtml(shift.time)}</small></span><span class="pill ${shift.type === 'Night Shift' ? 'dark' : shift.type === 'Off' ? 'off' : 'aqua'}">${shift.type === 'Off' ? 'DAY OFF' : shift.type === 'Night Shift' ? `${icon('moon', 14)} Night` : `${icon('sun', 14)} Day`}</span>${shift.type === 'Off' ? '' : '<span class="tiny-hours">12h</span>'}</button>`;
 }
 
 function timeline() {
@@ -65,11 +92,18 @@ function timeline() {
 }
 
 function today() {
-  return `<p class="eyebrow">THURSDAY, OCTOBER 15</p><h1>Good afternoon, Jamie.</h1><p class="subhead">A little support for your next shift.</p><div class="card lime"><div class="card-title-row"><p class="eyebrow">NEXT SHIFT</p><span class="pill dark">◷ Night Shift</span></div><h2 class="shift-time">19:00 – 07:30</h2><p class="fine">Thu, Oct 15 · starts in 1h 04m</p></div><div class="card sleep-window"><div class="card-title-row"><p class="eyebrow">REST PLAN</p><span class="pill">After work</span></div><h2>Your sleep window</h2><p class="strong-time">09:00–15:30</p><span class="pill aqua">6h 30m</span><p class="fine sleep-copy">Plan time to rest after work and before your next commitment.</p></div>${timeline()}<div class="section-heading"><p class="eyebrow">AROUND YOUR SHIFT</p><h2>One useful next step</h2></div>${[['☼', 'LIGHT', 'Plan your light exposure', 'Think about the light you’ll have at work and on your commute.'], ['▯', 'CAFFEINE', 'Check in on caffeine', 'Notice when you have caffeine and how it affects your rest later.'], ['◔', 'NAP', 'Make room for a nap', 'If you plan to nap, leave yourself time to wake before heading in.']].map(([icon, label, title, detail]) => `<div class="card steps-card"><span class="step-icon">${icon}</span><div><p class="eyebrow">${label}</p><h3>${title}</h3><p>${detail}</p></div><span class="open-link">Open →</span></div>`).join('')}<div class="card mint recovery-card"><p class="eyebrow">RECOVERY</p><h3>Build your sleep picture</h3><p class="fine">Add a sleep check-in after your next rest. Your recent entries will appear here.</p><button class="link-button" data-page="Schedule">View Schedule →</button></div>`;
+  return `<p class="eyebrow">THURSDAY, OCTOBER 15</p><h1>Good afternoon, Jamie.</h1><p class="subhead">A little support for your next shift.</p><div class="card lime"><div class="card-title-row"><p class="eyebrow">NEXT SHIFT</p><span class="pill dark">${icon('moon', 9)} Night Shift</span></div><h2 class="shift-time">19:00 – 07:30</h2><p class="fine">Thu, Oct 15 · starts in 1h 04m</p></div><div class="card sleep-window"><div class="card-title-row"><p class="eyebrow">REST PLAN</p><span class="pill">After work</span></div><h2>Your sleep window</h2><p class="strong-time">09:00–15:30</p><span class="pill aqua">6h 30m</span><p class="fine sleep-copy">Plan time to rest after work and before your next commitment.</p></div>${timeline()}<div class="section-heading"><p class="eyebrow">AROUND YOUR SHIFT</p><h2>One useful next step</h2></div>${[['sun', 'LIGHT', 'Plan your light exposure', 'Think about the light you’ll have at work and on your commute.'], ['coffee', 'CAFFEINE', 'Check in on caffeine', 'Notice when you have caffeine and how it affects your rest later.'], ['bed', 'NAP', 'Make room for a nap', 'If you plan to nap, leave yourself time to wake before heading in.']].map(([iconName, label, title, detail]) => `<div class="card steps-card"><span class="step-icon">${icon(iconName, 14)}</span><div><p class="eyebrow">${label}</p><h3>${title}</h3><p>${detail}</p></div><span class="open-link">Open ${icon('arrow', 9)}</span></div>`).join('')}<div class="card mint recovery-card"><p class="eyebrow">RECOVERY</p><h3>Build your sleep picture</h3><p class="fine">Add a sleep check-in after your next rest. Your recent entries will appear here.</p><button class="link-button" data-page="Recovery">View recovery ${icon('arrow', 10)}</button></div>`;
 }
 
 function weekCalendar() {
-  return `<div class="calendar-nav"><button aria-label="Previous week">‹</button><strong>OCT 12 – OCT 18, 2026</strong><button aria-label="Next week">›</button></div><div class="week-overview"><p class="eyebrow">SCHEDULED THIS WEEK</p><strong>49h</strong><p>5 shifts · scheduled span, breaks not deducted.</p></div>${state.shifts.slice(0, 5).map((shift) => `<button class="schedule-row ${state.selectedDate === shift.date ? 'selected' : ''}" data-select-day="${shift.date}"><span class="date-badge">${shift.short}<b>${Number(shift.date)}</b></span><span class="schedule-label"><strong>${shift.title}</strong><small>${shift.type === 'Off' ? 'No shift planned' : shift.time}</small></span><span class="pill ${shift.type === 'Night Shift' ? 'dark' : shift.type === 'Day Shift' ? 'aqua' : 'off'}">${shift.type === 'Night Shift' ? '◷ Night' : shift.type === 'Day Shift' ? '☼ Day' : 'DAY OFF'}</span>${shift.type !== 'Off' ? '<span class="tiny-hours">12h</span>' : ''}</button>`).join('')}`;
+  return state.shifts.slice(0, 5).map((shift) => {
+    const selected = state.selectedDate === shift.date;
+    const past = Number(shift.date) < Number(state.selectedDate);
+    const type = shift.type === 'Night Shift' ? 'night' : shift.type === 'Day Shift' ? 'day' : shift.type === 'Sick' ? 'sick' : 'off';
+    const statusIcon = type === 'night' ? 'moon' : type === 'day' ? 'sun' : type === 'sick' ? 'heart' : 'circle';
+    const statusName = type === 'night' ? 'Night' : type === 'day' ? 'Day' : type === 'sick' ? 'Sick' : 'Off';
+    return `<button class="schedule-row ${selected ? 'selected' : ''}" data-select-day="${shift.date}"><span class="schedule-date">${selected ? '<span class="today-mark">TODAY</span>' : ''}<span class="weekday ${past ? 'past-day' : ''}">${shift.short}</span><strong>${Number(shift.date)}</strong></span><span class="schedule-label"><strong>${shift.type === 'Off' ? 'Day Off' : shift.title}</strong><small>${shift.time.replaceAll(' – ', '–')}</small></span><span class="shift-kind ${type}">${icon(statusIcon, 14)} ${statusName}</span><span class="duration-pill">12h</span></button>`;
+  }).join('');
 }
 
 function monthCalendar() {
@@ -77,21 +111,28 @@ function monthCalendar() {
     const firstWeekday = (new Date(2026, 9, 1).getDay() + 6) % 7;
     const currentDate = index - firstWeekday + 1;
     const outside = currentDate < 1 || currentDate > 31;
-    const date = outside ? new Date(2026, currentDate < 1 ? 8 : 10, currentDate < 1 ? currentDate + 1 : currentDate - 31).getDate() : currentDate;
-    const dateStr = String(date).padStart(2, '0');
+    if (outside) return `<span class="calendar-blank">·</span>`;
+    const dateStr = String(currentDate).padStart(2, '0');
     const shift = state.shifts.find((item) => item.date === dateStr);
-    return `<button class="day-cell ${state.selectedDate === dateStr ? 'selected' : ''}" data-select-day="${dateStr}" style="${outside ? 'opacity:.35' : ''}"><span>${date}</span>${shift && shift.type !== 'Off' ? '<i class="dot"></i>' : ''}</button>`;
+    const type = shift?.type === 'Day Shift' ? 'day' : shift?.type === 'Night Shift' ? 'night' : shift?.type === 'Sick' ? 'sick' : shift?.type === 'Off' ? 'off' : '';
+    const marker = type ? `<span class="day-marker ${type}">${type === 'day' ? 'D' : type === 'night' ? 'N' : type === 'sick' ? 'S' : 'O'}</span>` : '';
+    return `<button class="day-cell ${state.selectedDate === dateStr ? 'selected' : ''}" data-select-day="${dateStr}"><span>${currentDate}</span>${marker}</button>`;
   }).join('');
-  return `<div class="calendar-nav"><button aria-label="Previous month">‹</button><strong>OCTOBER 2026</strong><button aria-label="Next month">›</button></div><div class="weekdays">${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day) => `<span>${day}</span>`).join('')}</div><div class="days">${cells}</div>`;
+  return `<div class="month-grid-card"><div class="weekdays">${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day) => `<span>${day}</span>`).join('')}</div><div class="days">${cells}</div><div class="legend"><span><i class="day">D</i>Day</span><span><i class="night">N</i>Night</span><span><i class="off">O</i>Off</span><span><i class="sick">S</i>Sick</span></div></div>`;
 }
 
 function schedule() {
-  return `<p class="eyebrow">YOUR WORK, AT A GLANCE</p><h1>Your schedule</h1><div class="segmented view-switch"><button class="segment-button ${state.scheduleView === 'Week' ? 'active' : ''}" data-view="Week">Week</button><button class="segment-button ${state.scheduleView === 'Month' ? 'active' : ''}" data-view="Month">Month</button></div><p class="subhead schedule-subhead">Plan work, rest and time away.</p><div class="card schedule-card">${state.scheduleView === 'Week' ? weekCalendar() : `<div class="month-overview"><p class="eyebrow">SCHEDULED THIS MONTH</p><strong>104h</strong><p>6 shifts · scheduled span, breaks not deducted.</p></div>${monthCalendar()}`}</div><button class="btn" data-action="add-shift">＋ Add shift</button><div class="card callout-blue schedule-tip"><span class="callout-icon">ⓘ</span><p>Mark a day off or sick in one tap. Your personal schedule stays yours.</p></div>`;
+  const summary = state.scheduleView === 'Week'
+    ? `<div class="card schedule-summary"><p class="eyebrow">SCHEDULED THIS WEEK</p><strong>49h</strong><p>5 shifts · scheduled span; breaks not deducted.</p></div>`
+    : `<div class="card schedule-summary"><p class="eyebrow">SCHEDULED THIS MONTH</p><strong>104h</strong><p>6 shifts · scheduled span; breaks not deducted.</p></div>`;
+  const dateLabel = state.scheduleView === 'Week' ? 'OCT 12 – OCT 18, 2026' : 'OCTOBER 2026';
+  const dateNav = `<div class="calendar-nav"><button data-action="calendar-prev" aria-label="Previous ${state.scheduleView.toLowerCase()}">${icon('arrowLeft', 16)}</button><strong>${dateLabel}</strong><button data-action="calendar-next" aria-label="Next ${state.scheduleView.toLowerCase()}">${icon('arrow', 16)}</button></div>`;
+  return `<p class="eyebrow">YOUR WORK, AT A GLANCE</p><h1>Your schedule</h1><p class="subhead schedule-subhead">Plan work, rest and time away.</p><div class="segmented view-switch"><button class="segment-button ${state.scheduleView === 'Week' ? 'active' : ''}" data-view="Week">Week</button><button class="segment-button ${state.scheduleView === 'Month' ? 'active' : ''}" data-view="Month">Month</button></div>${dateNav}${summary}${state.scheduleView === 'Week' ? `<div class="week-list">${weekCalendar()}</div><button class="btn add-shift-button" data-action="add-shift">${icon('plus', 18)} Add shift</button><div class="card callout-blue schedule-tip"><span class="callout-icon">${icon('info', 16)}</span><p>Mark a day off or sick in one tap. Your personal schedule stays yours.</p></div>` : `${monthCalendar()}<div class="card callout-blue schedule-tip"><span class="callout-icon">${icon('info', 16)}</span><p>Tap any date to add a shift or edit the one scheduled. Mark a day off or sick in one tap. Your personal schedule stays yours.</p></div><button class="btn add-shift-button" data-action="add-shift">${icon('plus', 18)} Add shift</button>`}`;
 }
 
 function recovery() {
-  const feelings = [['Energized', '⚡'], ['Calm', '☼'], ['Okay', '◉'], ['Sleepy', '☾'], ['Stressed', '⌁'], ['Irritated', '♨']];
-  return `<p class="eyebrow">A GENTLER WAY TO TRACK</p><h1>Recovery</h1><p class="subhead">Small steps add up over time.</p><div class="card lime pattern-card"><p class="eyebrow">YOUR PERSONAL PATTERNS</p><h3>Patterns take time.</h3><p class="fine">Log sleep and check in over time to see how shifts affect your recovery.</p></div><div class="card"><p class="eyebrow">A QUICK CHECK-IN</p><h3>How are you feeling?</h3><div class="mood-grid">${feelings.map(([feeling, icon]) => `<button class="mood ${state.mood === feeling ? 'selected' : ''}" data-mood="${feeling}"><span>${icon}</span>${feeling}</button>`).join('')}</div></div><div class="card"><p class="eyebrow">SLEEP TRACKER</p><h3>How did you sleep?</h3><p class="fine">Record an estimate or choose a connected source.</p><div class="sleep-reading">${Number(state.sleep).toFixed(0)} hours</div><div class="source-buttons"><button class="source-button ${state.sleepSource === 'Enter manually' ? 'active' : ''}" data-sleep-source="Enter manually">Enter manually</button><button class="source-button ${state.sleepSource === 'Wearable' ? 'active' : ''}" data-sleep-source="Wearable">Apple Health / wearable</button></div><div class="sleep-range"><span>0h</span><input aria-label="Hours slept" type="range" min="0" max="12" step="0.5" value="${state.sleep}" data-sleep-range><span>12h</span></div></div><div class="card"><p class="eyebrow">OPTIONAL · PRIVATE</p><div class="cycle-heading"><span>◌</span><div><h3>Menstrual cycle</h3><p class="fine">Log a period start to help you notice your own patterns alongside shifts and rest.</p></div></div><p class="private-note">This data is never shared with your hospital.</p><button class="btn secondary log-btn" data-action="log-day">＋ Log today</button><div class="privacy-strip">ⓘ &nbsp;This data is private and never shared with your hospital.</div></div><div class="card"><p class="eyebrow">TRENDS</p><h3>Your recent trend</h3><p class="fine">Your sleep check-ins will build a picture of your routine over time. Add a few entries to get started.</p></div>`;
+  const feelings = [['Energized', 'sparkle'], ['Calm', 'calm'], ['Okay', 'circle'], ['Sleepy', 'moon'], ['Stressed', 'rotate'], ['Irritated', 'sun']];
+  return `<p class="eyebrow">A GENTLER WAY TO TRACK</p><h1>Recovery</h1><p class="subhead">Small steps add up over time.</p><div class="card pattern-card"><p class="eyebrow">YOUR PERSONAL PATTERNS</p><h3>Patterns take time.</h3><p class="fine">There’s no right score. Your check-ins are a private way to see how you’re doing.</p></div><div class="card"><p class="eyebrow">A QUICK CHECK-IN</p><h3>How are you feeling right now?</h3><div class="mood-grid">${feelings.map(([feeling, iconName]) => `<button class="mood ${state.mood === feeling ? 'selected' : ''}" data-mood="${feeling}">${icon(iconName, 15)}<span>${feeling}</span></button>`).join('')}</div></div><div class="card"><p class="eyebrow">SLEEP TRACKER</p><h3>How did you sleep?</h3><p class="fine">Record an estimate or choose a connected source.</p><div class="sleep-reading">${Number(state.sleep).toFixed(0)} hours</div><div class="source-buttons"><button class="source-button ${state.sleepSource === 'Enter manually' ? 'active' : ''}" data-sleep-source="Enter manually">Enter manually</button><button class="source-button ${state.sleepSource === 'Wearable' ? 'active' : ''}" data-sleep-source="Wearable">Apple Health / wearable</button></div><div class="sleep-range"><span>0h</span><input aria-label="Hours slept" type="range" min="0" max="12" step="0.5" value="${state.sleep}" data-sleep-range><span>12h</span></div></div><div class="card cycle-card"><p class="eyebrow">OPTIONAL · PRIVATE</p><div class="cycle-heading"><span>${icon('cycle', 17)}</span><div><h3>Menstrual cycle</h3><p class="fine">Log a period start to help you notice your own patterns alongside shifts and rest.</p></div></div><p class="private-note">This data is never shared with your hospital.</p><button class="btn secondary log-btn" data-action="log-day">${icon('plus', 14)} Log today</button><div class="privacy-strip">${icon('info', 12)} This data is private and never shared with your hospital.</div></div><div class="card"><p class="eyebrow">TRENDS</p><h3>Your recent trend</h3><p class="fine">Your sleep check-ins will build a picture of your routine over time. Add a few entries to get started.</p></div>`;
 }
 
 function preference(label, detail, on) {
@@ -99,11 +140,11 @@ function preference(label, detail, on) {
 }
 
 function profile() {
-  return `<p class="eyebrow">YOUR SPACE, YOUR CHOICES</p><h1>Profile</h1><p class="subhead">Manage your routine and wellbeing preferences.</p><div class="card person-card"><span class="avatar">J</span><span><strong>Jamie Morgan</strong><small>Registered nurse · Rotating shifts</small></span></div><p class="eyebrow section-label">PREFERENCES</p><div class="card settings-card"><h3>Preferences</h3><p class="fine">Shape your reminders and sleep plan.</p>${profileRow('♧', 'Notifications', 'On', 'notifications')}${profileRow('◷', 'Shift reminders', '1 hour before', 'reminders')}${profileRow('☾', 'Sleep preferences', '', 'sleep-preferences')}</div><div class="card settings-card privacy-card"><h3>Privacy</h3><p class="fine">Your wellbeing information belongs to you.</p>${profileRow('♡', 'Personal Data', 'Private', 'data')}${profileRow('♧', 'Hospital data sharing', 'Off', 'sharing')}</div><p class="tiny-label footer-brand">CIRCADIA · A PERSONAL GUIDE TO SHIFT WORK</p>`;
+  return `<p class="eyebrow">YOUR SPACE, YOUR CHOICES</p><h1>Profile</h1><p class="subhead">Manage your routine and wellbeing preferences.</p><div class="card person-card"><span class="avatar">J</span><span><strong>Jamie Morgan</strong><small>Registered nurse · Rotating shifts</small></span></div><p class="eyebrow section-label">PREFERENCES</p><div class="card settings-card"><h2>Preferences</h2><p class="fine">Shape your reminders and sleep plan.</p><div class="settings-divider"></div>${profileRow('bell', 'Notifications', 'On', 'notifications')}${profileRow('clock', 'Shift reminders', '1 hour before', 'reminders')}${profileRow('moon', 'Sleep preferences', '', 'sleep-preferences')}</div><div class="card settings-card privacy-card"><h2>Privacy</h2><p class="fine">Your wellbeing information belongs to you.</p><div class="settings-divider"></div>${profileRow('heart', 'Personal Data', 'Private', 'data')}${profileRow('moon', 'Hospital data sharing', 'Off', 'sharing')}</div><p class="tiny-label footer-brand">CIRCADIA · A PERSONAL GUIDE TO SHIFT WORK</p>`;
 }
 
-function profileRow(icon, name, value, action) {
-  return `<button class="profile-row" data-action="profile-detail" data-detail="${action}"><span class="profile-row-icon">${icon}</span><span>${name}</span><span class="profile-value">${value} <b>›</b></span></button>`;
+function profileRow(iconName, name, value, action) {
+  return `<button class="profile-row" data-action="profile-detail" data-detail="${action}"><span class="profile-row-icon">${icon(iconName, 18)}</span><span class="profile-row-name">${name}</span><span class="profile-value">${value}${value ? ' ' : ''}${icon('arrow', 16)}</span></button>`;
 }
 
 function addShiftPage() {
@@ -180,7 +221,15 @@ root.addEventListener('click', (event) => {
   if (target.dataset.selectMethod) { state.rosterMethod = target.dataset.selectMethod; render(); return; }
   if (target.dataset.view) { state.scheduleView = target.dataset.view; render(); return; }
   if (target.dataset.selectDay) { state.selectedDate = target.dataset.selectDay; render(); return; }
-  if (target.dataset.mood) { state.mood = target.dataset.mood; render(); toast(`Check-in saved: ${state.mood.toLowerCase()}`); return; }
+  if (target.dataset.mood) {
+    const currentScroll = root.querySelector('.screen')?.scrollTop ?? 0;
+    state.mood = target.dataset.mood;
+    render();
+    const screen = root.querySelector('.screen');
+    if (screen) screen.scrollTop = currentScroll;
+    toast(`Check-in saved: ${state.mood.toLowerCase()}`);
+    return;
+  }
   if (target.dataset.sleepSource) { state.sleepSource = target.dataset.sleepSource; render(); return; }
   if (target.hasAttribute('data-toggle-cycle')) { state.cycle = !state.cycle; render(); toast(state.cycle ? 'Cycle tracking enabled' : 'Cycle tracking paused'); return; }
   if (target.dataset.togglePref) { state.notifications[target.dataset.togglePref] = !state.notifications[target.dataset.togglePref]; render(); return; }
