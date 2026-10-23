@@ -527,3 +527,32 @@ input[type=range] { width: 100%; accent-color: var(--deep); height: 12px; }
 .schedule-row { cursor: pointer; }
 .calendar-blank { display: grid; place-items: center; min-height: 42px; color: #a8b5b0; }
 
+/* Name capture and account prototype screens share the Circadia form language. */
+.onboarding-name-field { margin: 0 0 12px!important; font-size: 10px!important; }
+.onboarding-name-field .field { min-height: 45px; padding: 10px 12px; border-radius: 11px; font-size: 14px; }
+.onboarding-pattern-label { margin: 0 0 8px!important; }
+.onboarding-account-links { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; margin-top: 15px; color: var(--muted); font-size: 11px; }
+.onboarding-account-links button, .auth-switch button, .auth-forgot { border: 0; padding: 3px; background: transparent; color: #18786e; font-size: inherit; font-weight: 700; cursor: pointer; }
+.account-card { margin-top: 12px!important; }
+.account-card .eyebrow { margin-bottom: 6px!important; }
+.account-card .btn { min-height: 42px; margin-top: 9px; font-size: 13px; }
+.account-card .btn.ghost { min-height: 34px; font-size: 13px; }
+.auth-screen { padding: 13px 20px 25px!important; }
+.auth-page { max-width: 100%; }
+.auth-brand { display: flex; align-items: center; gap: 9px; margin: 9px 0 28px; color: var(--ink); }
+.auth-brand .ui-icon { width: 28px; height: 28px; }
+.auth-brand strong { font-size: 21px; font-weight: 800; letter-spacing: -.8px; }
+.auth-page h1 { margin-bottom: 9px!important; }
+.auth-page .subhead { margin-bottom: 22px!important; }
+.auth-page .field-label { margin: 14px 0 7px; font-size: 10px; }
+.auth-page .field { min-height: 48px; padding: 11px 12px; border-radius: 11px; font-size: 15px; }
+.auth-page .btn { min-height: 50px; padding: 13px 15px; border-radius: 13px; font-size: 15px; margin-top: 18px; }
+.auth-page .btn.secondary { justify-content: center; background: white; border: 1.5px solid var(--aqua); }
+.auth-page .btn.ghost { min-height: 40px; margin-top: 6px; font-size: 14px; }
+.auth-demo-note { margin: 12px 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.auth-switch { margin-top: 18px; text-align: center; color: var(--muted); font-size: 13px; }
+.auth-forgot { display: block; margin: 8px 0 0 auto; font-size: 12px; }
+.auth-success { display: flex; align-items: flex-start; gap: 12px; padding: 16px!important; background: #dff4ef!important; }
+.auth-success .ui-icon { flex: 0 0 auto; width: 23px; height: 23px; }
+.auth-success p { margin: 0; font-size: 14px; line-height: 1.45; }
+
