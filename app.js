@@ -307,7 +307,7 @@ function finishOnboarding() {
 
 function addShift() {
   const value = document.querySelector('#shift-date')?.value || state.shiftDate;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(dateFromISO(value).getTime())) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(dateFromISO(value).getTime()) || isoFromDate(dateFromISO(value)) !== value) {
     toast('Choose a valid shift date');
     return;
   }
