@@ -275,3 +275,170 @@ input[type=range] { width: 100%; accent-color: var(--deep); height: 12px; }
   .screen.onboarding { padding: 45px 20px 26px; }
 }
 
+/* Shared scale and component sizing from the supplied Circadia mobile screens. */
+:root {
+  --canvas: #f3f7f5;
+  --ink: #173c36;
+  --deep: #173c36;
+  --muted: #5b6d68;
+  --line: #dce6e2;
+  --aqua: #12b8a6;
+  --mint: #dff4ef;
+  --lime: #d7f36a;
+  --lavender: #e3eaff;
+}
+.app-frame:not(:has(.screen.onboarding)) { background: #f3f7f5; }
+.statusbar { height: 42px; padding: 9px 25px 4px; font-size: 13px; }
+.signal { width: 16px; height: 12px; }
+.wifi { width: 15px; height: 11px; }
+.battery { width: 22px; height: 11px; }
+.app-header { height: 55px; padding: 4px 20px 8px; }
+.brand { font-size: 23px; letter-spacing: -1px; }
+.icon-button { width: 38px; height: 38px; }
+.icon-button .ui-icon { width: 22px; height: 22px; }
+.screen:not(.onboarding) { padding: 13px 20px 23px; }
+.screen:not(.onboarding) .eyebrow { font-size: 10px; line-height: 1.35; margin-bottom: 7px; letter-spacing: .01em; }
+.screen:not(.onboarding) h1 { font-size: 27px; line-height: 1.14; letter-spacing: -.55px; margin-bottom: 11px; }
+.screen:not(.onboarding) h2 { font-size: 19px; line-height: 1.22; margin-bottom: 7px; }
+.screen:not(.onboarding) h3 { font-size: 15px; line-height: 1.25; margin-bottom: 6px; }
+.screen:not(.onboarding) .subhead { font-size: 16px; line-height: 1.4; margin-bottom: 18px; }
+.screen:not(.onboarding) .fine { font-size: 12px; line-height: 1.45; }
+.screen:not(.onboarding) .card { padding: 15px; border-radius: 17px; margin-bottom: 12px; }
+.bottom-nav { height: 64px; padding: 5px 8px 6px; }
+.nav-item { border-radius: 14px; gap: 3px; font-size: 12px; }
+.nav-item .nav-icon { line-height: 25px; }
+.nav-item .ui-icon { width: 22px; height: 22px; }
+.nav-item.active { background: #dff4ef; }
+
+/* Today */
+.screen:not(.onboarding) .card.lime { padding: 17px; border-radius: 16px; }
+.screen:not(.onboarding) .card.lime .fine { color: var(--ink); }
+.screen:not(.onboarding) .card.deep .fine { color: #d3e2dd; }
+.screen:not(.onboarding) .card-title-row { gap: 10px; margin-bottom: 10px; }
+.screen:not(.onboarding) .card-title-row .eyebrow { font-size: 10px; }
+.screen:not(.onboarding) .pill { font-size: 11px; padding: 7px 10px; border-radius: 9px; gap: 5px; }
+.screen:not(.onboarding) .pill .ui-icon { width: 15px; height: 15px; }
+.screen:not(.onboarding) .shift-time { font-size: 24px; margin-bottom: 6px; }
+.screen:not(.onboarding) .sleep-window { padding: 16px; }
+.screen:not(.onboarding) .strong-time { font-size: 29px; margin: 3px 0 7px; }
+.screen:not(.onboarding) .sleep-copy { margin-top: 10px; }
+.screen:not(.onboarding) .timeline-axis { font-size: 10px; }
+.screen:not(.onboarding) .lane { margin: 10px 0 12px; }
+.screen:not(.onboarding) .lane-label { font-size: 12px; margin-bottom: 5px; }
+.screen:not(.onboarding) .lane-label span:last-child { font-size: 10px; }
+.screen:not(.onboarding) .track { height: 9px; }
+.screen:not(.onboarding) .steps-card { display: flex; align-items: flex-start; gap: 12px; padding: 14px; }
+.screen:not(.onboarding) .step-icon { width: 34px; height: 34px; border-radius: 11px; }
+.screen:not(.onboarding) .step-icon .ui-icon { width: 20px; height: 20px; }
+.screen:not(.onboarding) .steps-card p { font-size: 11px; line-height: 1.4; }
+.screen:not(.onboarding) .steps-card h3 { margin-bottom: 4px; }
+.screen:not(.onboarding) .open-link { font-size: 10px; }
+.screen:not(.onboarding) .link-button { font-size: 12px; padding: 7px 0 0; }
+.screen:not(.onboarding) .card.mint { background: #f4f9df; border-color: #e8edd2; }
+
+/* Week and month schedule views */
+.schedule-subhead { margin-bottom: 18px!important; }
+.view-switch { display: flex; width: 100%; padding: 4px; gap: 4px; border-radius: 15px; margin: 0 0 16px; }
+.view-switch .segment-button { min-height: 44px; padding: 9px; border-radius: 11px; font-size: 14px; color: var(--ink); }
+.view-switch .segment-button.active { background: var(--deep); color: white; }
+.calendar-nav { height: 48px; margin: 0 0 12px; }
+.calendar-nav strong { font-size: 14px; }
+.calendar-nav button { width: 36px; height: 36px; padding: 8px; display: grid; place-items: center; }
+.calendar-nav .ui-icon { width: 19px; height: 19px; }
+.schedule-summary { padding: 17px!important; border-radius: 17px!important; margin-bottom: 12px!important; }
+.schedule-summary .eyebrow { font-size: 12px!important; margin-bottom: 10px!important; }
+.schedule-summary strong { display: block; font-size: 26px; line-height: 1.15; margin-bottom: 7px; }
+.schedule-summary p:last-child { font-size: 13px; line-height: 1.4; margin: 0; }
+.week-list { display: grid; gap: 10px; }
+.schedule-row { min-height: 58px; grid-template-columns: 48px minmax(0, 1fr) auto auto; gap: 9px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 14px; }
+.schedule-row.selected { min-height: 82px; background: #dff4ef; border: 1.5px solid #385d55; border-radius: 14px; }
+.schedule-date { min-height: 42px; border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 11px; color: var(--muted); }
+.schedule-date strong { font-size: 14px; color: var(--ink); }
+.schedule-date .past-day { color: #74817d; text-decoration: line-through; }
+.today-mark { font-size: 9px; line-height: 1; font-weight: 700; background: var(--lime); border-radius: 8px; padding: 4px 6px; margin-bottom: 2px; }
+.schedule-label strong { display: block; font-size: 14px; line-height: 1.25; }
+.schedule-label small { display: block; font-size: 12px; margin-top: 4px; }
+.shift-kind { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 8px 9px; border-radius: 10px; white-space: nowrap; font-size: 11px; font-weight: 700; }
+.shift-kind .ui-icon { width: 15px; height: 15px; }
+.shift-kind.day { background: #f2f8dc; color: var(--ink); }
+.shift-kind.night { background: var(--deep); color: white; }
+.shift-kind.off { background: #e9efec; color: #98a6a1; }
+.shift-kind.sick { background: #f5dddd; color: #874747; }
+.duration-pill { padding: 8px 9px; border-radius: 10px; background: #e9efec; color: var(--ink); font-size: 12px; font-weight: 700; }
+.add-shift-button { min-height: 52px; border-radius: 14px; justify-content: flex-start; padding: 12px 15px; font-size: 17px; margin: 12px 0; }
+.add-shift-button .ui-icon { width: 20px; height: 20px; }
+.schedule-tip { display: flex; align-items: center; gap: 10px; padding: 13px 15px!important; border-radius: 15px!important; background: var(--lavender); }
+.schedule-tip .ui-icon { width: 20px; height: 20px; }
+.schedule-tip p { margin: 0; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.month-grid-card { padding: 13px; background: white; border: 1px solid var(--line); border-radius: 18px; margin: 0 0 12px; }
+.weekdays { margin-bottom: 5px; }
+.weekdays span { font-size: 13px; padding: 8px 0; }
+.days { grid-template-rows: repeat(5, minmax(42px, auto)); gap: 3px; }
+.day-cell { min-height: 42px; border-radius: 10px; gap: 3px; font-size: 13px; padding: 2px; }
+.day-cell.selected { background: #dff4ef; }
+.day-marker, .legend i { min-width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; font-style: normal; font-size: 12px; font-weight: 700; }
+.day-marker.day, .legend i.day { background: #f2f8dc; color: #537143; }
+.day-marker.night, .legend i.night { background: var(--deep); color: white; }
+.day-marker.off, .legend i.off { background: #e9efec; color: #9aa7a2; }
+.day-marker.sick, .legend i.sick { background: #f5dddd; color: #874747; }
+.legend { display: flex; justify-content: space-between; align-items: center; gap: 5px; border-top: 1px solid var(--line); padding-top: 10px; margin-top: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.legend i { min-width: 23px; height: 23px; }
+
+/* Recovery keeps the supplied lime message card and uses the shared outline icon system. */
+.pattern-card { background: #d7f36a!important; color: #173c36; padding: 16px!important; border: 0!important; border-radius: 16px!important; }
+.pattern-card .eyebrow, .pattern-card h3, .pattern-card .fine { color: #173c36!important; }
+.pattern-card .eyebrow { font-size: 10px!important; margin-bottom: 8px!important; }
+.pattern-card h3 { font-size: 19px!important; margin-bottom: 7px!important; }
+.pattern-card .fine { font-size: 13px!important; line-height: 1.45!important; }
+.mood-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.mood { min-height: 42px; border-radius: 12px; gap: 7px; font-size: 12px; }
+.mood .ui-icon { width: 18px; height: 18px; }
+.mood span { font-size: 12px; }
+.mood.selected { background: var(--aqua); color: white; border-color: var(--aqua); }
+.sleep-reading { font-size: 22px; margin: 8px 0 10px; }
+.source-buttons { gap: 8px; margin: 10px 0; }
+.source-button { border-radius: 10px; padding: 10px 8px; font-size: 11px; }
+.sleep-range { font-size: 11px; gap: 8px; }
+.cycle-heading { gap: 12px; }
+.cycle-heading>span { width: 30px; height: 30px; }
+.cycle-heading .ui-icon { width: 19px; height: 19px; }
+.private-note { font-size: 11px; margin: 8px 0; }
+.screen:not(.onboarding) .log-btn { min-height: 40px; padding: 9px 11px; font-size: 12px; }
+.privacy-strip { display: flex; align-items: center; gap: 7px; padding: 9px 11px; border-radius: 9px; font-size: 10px; }
+
+/* Profile spacing, dividers, person card, and list rows follow the supplied profile reference. */
+.person-card { display: flex; align-items: center; gap: 13px; padding: 17px!important; border-radius: 18px!important; }
+.avatar { width: 42px; height: 42px; flex: 0 0 auto; background: #596b66; color: white; font-size: 17px; font-weight: 500; }
+.person-card strong { display: block; font-size: 19px; line-height: 1.25; }
+.person-card small { display: block; color: var(--muted); font-size: 13px; margin-top: 4px; }
+.section-label { margin: 18px 0 10px!important; }
+.settings-card { padding: 16px!important; border-radius: 18px!important; }
+.settings-card h2 { font-size: 19px!important; margin: 0 0 4px!important; }
+.settings-card>.fine { font-size: 13px!important; margin: 0 0 16px!important; }
+.settings-divider { height: 1px; background: var(--line); margin: 0 0 8px; }
+.privacy-card { margin-top: 12px!important; }
+.profile-row { width: 100%; min-height: 46px; display: flex; align-items: center; gap: 11px; padding: 8px 1px; border: 0; background: transparent; text-align: left; font-size: 14px; }
+.profile-row+.profile-row { border-top: 0; }
+.profile-row-icon { width: 18px; flex: 0 0 18px; display: grid; place-items: center; }
+.profile-row-icon .ui-icon { width: 19px; height: 19px; }
+.profile-row-name { font-size: 14px; font-weight: 600; }
+.profile-value { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.profile-value .ui-icon { width: 16px; height: 16px; }
+.footer-brand { text-align: center; margin: 14px 0 7px!important; font-size: 10px!important; }
+
+/* Onboarding roster's duration chips are individually editable; the add row stays outline-only. */
+.editable-shift { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 6px; min-width: 0; padding: 0!important; border: 1px solid #dce6e2!important; border-radius: 13px!important; background: white!important; overflow: hidden; }
+.editable-shift.roster-today { background: #dff4ef!important; border: 1.5px solid #385d55!important; }
+.onboarding .editable-shift { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; padding: 0; overflow: hidden; }
+.roster-cycle { display: grid; min-width: 0; grid-template-columns: 57px minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 0; padding: 8px 0 8px 10px; text-align: left; background: transparent; cursor: pointer; }
+.onboarding .roster-cycle { grid-template-columns: 57px minmax(0, 1fr) auto; padding: 8px 0 8px 10px; }
+.onboarding .date-badge { border-right: 1px solid #dce6e2; }
+.hours-button { align-self: center; justify-self: end; margin-right: 10px; border: 0; padding: 8px 9px; border-radius: 10px; background: #e8efec; color: #3f625b; font-size: 11px; font-weight: 700; cursor: pointer; }
+.onboarding .roster-add { background: transparent!important; border: 1.5px solid #12b8a6!important; color: var(--ink)!important; }
+
+@media (max-width: 600px) {
+  .screen:not(.onboarding) { padding: 13px 20px 23px; }
+  .bottom-nav { height: 64px; }
+}
+
