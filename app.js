@@ -17,6 +17,8 @@ days.forEach((shift) => {
 
 const state = {
   page: 'onboarding', step: 0, workPattern: 'Rotating shifts', rosterMethod: 'Enter shifts manually',
+  userName: '', accountEmail: '', signedIn: false, authView: 'create', authReturnPage: 'onboarding', authNotice: '',
+  authName: '', authEmail: '', authPassword: '',
   tab: 'Today', scheduleView: 'Week', selectedDate: '2026-10-15', monthCursor: '2026-10-01', weekStart: '2026-10-12',
   mood: 'Sleepy', sleep: 6, sleepSource: 'Enter manually', cycle: true,
   notifications: { 'Notifications': true, 'Shift reminders': true, 'Sleep preferences': true },
@@ -81,10 +83,10 @@ function actionButtons(primary, secondary = 'Back') {
 }
 
 function onboarding() {
-  if (state.step === 0) return `${progress(0)}<p class="eyebrow">PERSONAL SUPPORT FOR SHIFT WORK</p><h1>Your shifts change. Your recovery plan adapts.</h1><p class="subhead">Practical sleep and recovery support shaped around the shifts you actually work.</p><div class="card callout-blue onboarding-callout"><span class="callout-icon">${icon('heart', 20)}</span><div><p class="eyebrow">BUILT FOR ROTATING SHIFTS</p><p class="fine">More room for your life between shifts.</p></div></div><button class="btn" data-action="next">Set up my schedule <span>${icon('arrow', 17)}</span></button>`;
+  if (state.step === 0) return `${progress(0)}<p class="eyebrow">PERSONAL SUPPORT FOR SHIFT WORK</p><h1>Your shifts change. Your recovery plan adapts.</h1><p class="subhead">Practical sleep and recovery support shaped around the shifts you actually work.</p><div class="card callout-blue onboarding-callout"><span class="callout-icon">${icon('heart', 20)}</span><div><p class="eyebrow">BUILT FOR ROTATING SHIFTS</p><p class="fine">More room for your life between shifts.</p></div></div><button class="btn" data-action="next">Set up my schedule <span>${icon('arrow', 17)}</span></button><div class="onboarding-account-links"><button data-action="auth-create">Create an account</button><span>Already have an account?</span><button data-action="auth-login">Log in</button></div>`;
   if (state.step === 1) {
     const patterns = [['Day shifts', 'Mostly daytime hours', 'sun'], ['Night shifts', 'Mostly overnight hours', 'moon'], ['Rotating shifts', 'Different shifts across the week', 'shiftCycle']];
-    return `${progress(1)}<p class="eyebrow">FIRST, A LITTLE ABOUT YOU</p><h1>What kind of shifts do you work?</h1><p class="subhead">We’ll shape your preview around the way you work.</p>${patterns.map(([name, detail, iconName]) => `<button class="option ${state.workPattern === name ? 'selected' : ''}" data-select-pattern="${name}"><span class="option-copy"><span class="option-icon">${icon(iconName, 14)}</span><span><strong>${name}</strong><small>${detail}</small></span></span><span class="radio"></span></button>`).join('')}<p class="helper">We’ll use your upcoming shifts to time your sleep and recovery guidance.</p><button class="btn" data-action="next">Continue <span>${icon('arrow', 12)}</span></button><button class="btn ghost" data-action="back">← Back</button>`;
+    return `${progress(1)}<p class="eyebrow">FIRST, A LITTLE ABOUT YOU</p><h1>What kind of shifts do you work?</h1><p class="subhead">We’ll shape your preview around the way you work.</p><label class="field-label onboarding-name-field">YOUR NAME<input class="field" type="text" autocomplete="name" placeholder="Jamie Morgan" value="${escapeHtml(state.userName)}" data-user-name></label><p class="eyebrow onboarding-pattern-label">SHIFT PATTERN</p>${patterns.map(([name, detail, iconName]) => `<button class="option ${state.workPattern === name ? 'selected' : ''}" data-select-pattern="${name}"><span class="option-copy"><span class="option-icon">${icon(iconName, 14)}</span><span><strong>${name}</strong><small>${detail}</small></span></span><span class="radio"></span></button>`).join('')}<p class="helper">We’ll use your upcoming shifts to time your sleep and recovery guidance.</p><button class="btn" data-action="next">Continue <span>${icon('arrow', 12)}</span></button><button class="btn ghost" data-action="back">← Back</button>`;
   }
   if (state.step === 2) {
     const methods = [['Connect your calendar', 'Automatically import your upcoming shifts.', 'calendarAdd'], ['Enter shifts manually', 'Add shifts yourself, one by one.', 'pencil'], ['Upload a schedule', 'Upload your photo, screenshot, PDF, spreadsheet or WhatsApp screenshot.', 'imageUpload']];
@@ -111,7 +113,8 @@ function timeline() {
 function today() {
   const nextShift = state.shifts.find((shift) => shift.isoDate === '2026-10-15' && shift.type !== 'Off');
   const nextType = nextShift?.type === 'Day Shift' ? 'Day' : 'Night';
-  return `<p class="eyebrow">THURSDAY, OCTOBER 15</p><h1>Good afternoon, Jamie.</h1><p class="subhead">A little support for your next shift.</p><div class="card lime today-next-shift" data-action="edit-shift" data-date="${nextShift?.isoDate || '2026-10-15'}"><div class="card-title-row"><p class="eyebrow">NEXT SHIFT · TAP TO EDIT</p><span class="pill dark">${icon(nextType === 'Night' ? 'moon' : 'sun', 16)} ${nextType} Shift</span></div><h2 class="shift-time">${nextShift?.time || '19:00 – 07:30'}</h2><p class="fine">Thu, Oct 15 · starts in 1h 04m</p></div><div class="card sleep-window"><div class="card-title-row"><p class="eyebrow">REST PLAN</p><span class="pill">After work</span></div><h2>Your sleep window</h2><p class="strong-time">09:00–15:30</p><span class="pill aqua">6h 30m</span><p class="fine sleep-copy">Plan time to rest after work and before your next commitment.</p></div>${timeline()}<div class="section-heading"><p class="eyebrow">AROUND YOUR SHIFT</p><h2>One useful next step</h2></div>${[['sun', 'LIGHT', 'Plan your light exposure', 'Think about the light you’ll have at work and on your commute.'], ['coffee', 'CAFFEINE', 'Check in on caffeine', 'Notice when you have caffeine and how it affects your rest later.'], ['bed', 'NAP', 'Make room for a nap', 'If you plan to nap, leave yourself time to wake before heading in.']].map(([iconName, label, title, detail]) => `<div class="card steps-card"><span class="step-icon">${icon(iconName, 14)}</span><div><p class="eyebrow">${label}</p><h3>${title}</h3><p>${detail}</p></div><span class="open-link">Open ${icon('arrow', 9)}</span></div>`).join('')}<div class="card mint recovery-card"><p class="eyebrow">RECOVERY</p><h3>Build your sleep picture</h3><p class="fine">Add a sleep check-in after your next rest. Your recent entries will appear here.</p><button class="link-button" data-page="Recovery">View recovery ${icon('arrow', 10)}</button></div>`;
+  const firstName = state.userName.trim().split(/\s+/)[0] || 'there';
+  return `<p class="eyebrow">THURSDAY, OCTOBER 15</p><h1>Good afternoon, ${escapeHtml(firstName)}.</h1><p class="subhead">A little support for your next shift.</p><div class="card lime today-next-shift" data-action="edit-shift" data-date="${nextShift?.isoDate || '2026-10-15'}"><div class="card-title-row"><p class="eyebrow">NEXT SHIFT · TAP TO EDIT</p><span class="pill dark">${icon(nextType === 'Night' ? 'moon' : 'sun', 16)} ${nextType} Shift</span></div><h2 class="shift-time">${nextShift?.time || '19:00 – 07:30'}</h2><p class="fine">Thu, Oct 15 · starts in 1h 04m</p></div><div class="card sleep-window"><div class="card-title-row"><p class="eyebrow">REST PLAN</p><span class="pill">After work</span></div><h2>Your sleep window</h2><p class="strong-time">09:00–15:30</p><span class="pill aqua">6h 30m</span><p class="fine sleep-copy">Plan time to rest after work and before your next commitment.</p></div>${timeline()}<div class="section-heading"><p class="eyebrow">AROUND YOUR SHIFT</p><h2>One useful next step</h2></div>${[['sun', 'LIGHT', 'Plan your light exposure', 'Think about the light you’ll have at work and on your commute.'], ['coffee', 'CAFFEINE', 'Check in on caffeine', 'Notice when you have caffeine and how it affects your rest later.'], ['bed', 'NAP', 'Make room for a nap', 'If you plan to nap, leave yourself time to wake before heading in.']].map(([iconName, label, title, detail]) => `<div class="card steps-card"><span class="step-icon">${icon(iconName, 14)}</span><div><p class="eyebrow">${label}</p><h3>${title}</h3><p>${detail}</p></div><span class="open-link">Open ${icon('arrow', 9)}</span></div>`).join('')}<div class="card mint recovery-card"><p class="eyebrow">RECOVERY</p><h3>Build your sleep picture</h3><p class="fine">Add a sleep check-in after your next rest. Your recent entries will appear here.</p><button class="link-button" data-page="Recovery">View recovery ${icon('arrow', 10)}</button></div>`;
 }
 
 function weekCalendar() {
@@ -245,7 +248,21 @@ function preference(label, detail, on) {
 }
 
 function profile() {
-  return `<p class="eyebrow">YOUR SPACE, YOUR CHOICES</p><h1>Profile</h1><p class="subhead">Manage your routine and wellbeing preferences.</p><div class="card person-card"><span class="avatar">J</span><span><strong>Jamie Morgan</strong><small>Registered nurse · Rotating shifts</small></span></div><p class="eyebrow section-label">PREFERENCES</p><div class="card settings-card"><h2>Preferences</h2><p class="fine">Shape your reminders and sleep plan.</p><div class="settings-divider"></div>${profileRow('bell', 'Notifications', state.notifications.Notifications ? 'On' : 'Off', 'notifications')}${profileRow('clock', 'Shift reminders', state.reminderTiming, 'reminders')}${profileRow('moon', 'Sleep preferences', state.sleepPreference, 'sleep-preferences')}</div><div class="card settings-card privacy-card"><h2>Privacy</h2><p class="fine">Your wellbeing information belongs to you.</p><div class="settings-divider"></div>${profileRow('heart', 'Personal Data', 'Private', 'data')}${profileRow('moon', 'Hospital data sharing', state.hospitalSharing ? 'On' : 'Off', 'sharing')}</div><p class="tiny-label footer-brand">CIRCADIA · A PERSONAL GUIDE TO SHIFT WORK</p>`;
+  const name = state.userName.trim() || 'Your profile';
+  return `<p class="eyebrow">YOUR SPACE, YOUR CHOICES</p><h1>Profile</h1><p class="subhead">Manage your routine and wellbeing preferences.</p><div class="card person-card"><span class="avatar">${escapeHtml(name[0] || 'J')}</span><span><strong>${escapeHtml(name)}</strong><small>Registered nurse · ${escapeHtml(state.workPattern)}</small></span></div><p class="eyebrow section-label">PREFERENCES</p><div class="card settings-card"><h2>Preferences</h2><p class="fine">Shape your reminders and sleep plan.</p><div class="settings-divider"></div>${profileRow('bell', 'Notifications', state.notifications.Notifications ? 'On' : 'Off', 'notifications')}${profileRow('clock', 'Shift reminders', state.reminderTiming, 'reminders')}${profileRow('moon', 'Sleep preferences', state.sleepPreference, 'sleep-preferences')}</div><div class="card settings-card privacy-card"><h2>Privacy</h2><p class="fine">Your wellbeing information belongs to you.</p><div class="settings-divider"></div>${profileRow('heart', 'Personal Data', 'Private', 'data')}${profileRow('moon', 'Hospital data sharing', state.hospitalSharing ? 'On' : 'Off', 'sharing')}</div><div class="card settings-card account-card"><p class="eyebrow">ACCOUNT</p><h2>${state.signedIn ? 'Your account' : 'Save your plan'}</h2><p class="fine">${state.signedIn ? escapeHtml(state.accountEmail || 'Signed in on this device') : 'Create an account to keep your Circadia profile together.'}</p>${state.signedIn ? '<button class="detail-action danger" data-action="sign-out">Log out</button>' : '<button class="btn" data-action="auth-create">Create an account</button><button class="btn ghost" data-action="auth-login">Log in</button>'}</div><p class="tiny-label footer-brand">CIRCADIA · A PERSONAL GUIDE TO SHIFT WORK</p>`;
+}
+
+function authScreen() {
+  const title = state.authView === 'create' ? 'Create your account' : state.authView === 'login' ? 'Welcome back' : state.authView === 'forgot' ? 'Reset your password' : state.authView === 'reset-sent' ? 'Check your inbox' : 'You’re logged out';
+  const intro = state.authView === 'create' ? 'Save your name and personal shift plan.' : state.authView === 'login' ? 'Log in to continue with your Circadia profile.' : state.authView === 'forgot' ? 'Enter your email and we’ll prepare a reset link.' : state.authView === 'reset-sent' ? `If an account exists for ${escapeHtml(state.authEmail)}, a password reset link is on its way.` : 'Your local prototype session has ended.';
+  const back = `<button class="btn ghost detail-back" data-action="auth-back">${icon('arrowLeft', 16)} ${state.authReturnPage === 'Profile' ? 'Profile' : 'Back'}</button>`;
+  let form = '';
+  if (state.authView === 'create') form = `<label class="field-label">YOUR NAME<input class="field" type="text" autocomplete="name" placeholder="Jamie Morgan" value="${escapeHtml(state.authName || state.userName)}" data-auth-field="name" required></label><label class="field-label">EMAIL ADDRESS<input class="field" type="email" autocomplete="email" placeholder="you@example.com" value="${escapeHtml(state.authEmail)}" data-auth-field="email" required></label><label class="field-label">PASSWORD<input class="field" type="password" autocomplete="new-password" placeholder="At least 8 characters" data-auth-field="password" required></label><button class="btn" data-action="auth-submit-create">Create account <span>${icon('arrow', 16)}</span></button><p class="auth-demo-note">Prototype only: this demo does not create a real online account.</p><p class="auth-switch">Already have an account? <button data-action="auth-login">Log in</button></p>`;
+  if (state.authView === 'login') form = `<label class="field-label">EMAIL ADDRESS<input class="field" type="email" autocomplete="email" placeholder="you@example.com" value="${escapeHtml(state.authEmail)}" data-auth-field="email" required></label><label class="field-label">PASSWORD<input class="field" type="password" autocomplete="current-password" placeholder="Your password" data-auth-field="password" required></label><button class="auth-forgot" data-action="auth-forgot">Forgot password?</button><button class="btn" data-action="auth-submit-login">Log in <span>${icon('arrow', 16)}</span></button><p class="auth-demo-note">Demo sign-in accepts any valid email and non-empty password.</p><p class="auth-switch">New to Circadia? <button data-action="auth-create">Create an account</button></p>`;
+  if (state.authView === 'forgot') form = `<label class="field-label">EMAIL ADDRESS<input class="field" type="email" autocomplete="email" placeholder="you@example.com" value="${escapeHtml(state.authEmail)}" data-auth-field="email" required></label><button class="btn" data-action="auth-submit-reset">Send reset link <span>${icon('arrow', 16)}</span></button><p class="auth-demo-note">Password reset is a visual prototype flow; no email is sent.</p><p class="auth-switch"><button data-action="auth-login">Return to log in</button></p>`;
+  if (state.authView === 'reset-sent') form = `<div class="card auth-success">${icon('check', 24)}<p>Reset instructions are shown in this prototype. You can return to log in.</p></div><button class="btn" data-action="auth-login">Return to log in</button>`;
+  if (state.authView === 'signedout') form = `<button class="btn" data-action="auth-login">Log in</button><button class="btn secondary" data-action="auth-create">Create an account</button><button class="btn ghost" data-action="continue-guest">Continue without an account</button>`;
+  return `<div class="auth-page">${back}<div class="auth-brand">${icon('cycle', 27)}<strong>circadia</strong></div><p class="eyebrow">YOUR ROUTINE, YOUR WAY</p><h1>${title}</h1><p class="subhead">${intro}</p>${form}</div>`;
 }
 
 function profileRow(iconName, name, value, action) {
@@ -268,6 +285,7 @@ function modal() {
 
 function pageContent() {
   if (state.page === 'onboarding') return onboarding();
+  if (state.page === 'Auth') return authScreen();
   if (state.page === 'BuildingPlan') return loadingScreen();
   if (state.page === 'Today') return today();
   if (state.page === 'Schedule') return schedule();
@@ -281,7 +299,8 @@ function pageContent() {
 function render() {
   const onboardingPage = state.page === 'onboarding';
   const loading = state.page === 'BuildingPlan';
-  root.innerHTML = `<div class="shell"><section class="app-frame" aria-label="Circadia shift-aware recovery prototype">${statusBar()}${onboardingPage || loading ? '' : header()}<div class="screen ${onboardingPage ? 'onboarding' : ''} ${loading ? 'loading-screen' : ''}">${pageContent()}</div>${onboardingPage || loading ? '' : nav()}<div class="toast" id="toast" role="status"></div>${modal()}</section></div>`;
+  const auth = state.page === 'Auth';
+  root.innerHTML = `<div class="shell"><section class="app-frame" aria-label="Circadia shift-aware recovery prototype">${statusBar()}${onboardingPage || loading || auth ? '' : header()}<div class="screen ${onboardingPage ? 'onboarding' : ''} ${loading ? 'loading-screen' : ''} ${auth ? 'auth-screen' : ''}">${pageContent()}</div>${onboardingPage || loading || auth ? '' : nav()}<div class="toast" id="toast" role="status"></div>${modal()}</section></div>`;
 }
 
 function toast(message) {
@@ -350,6 +369,10 @@ root.addEventListener('input', (event) => {
   if (event.target.id === 'shift-date') state.shiftDate = event.target.value;
   if (event.target.id === 'shift-start') state.shiftDraftStart = event.target.value;
   if (event.target.id === 'shift-end') state.shiftDraftEnd = event.target.value;
+  if (event.target.matches('[data-user-name]')) state.userName = event.target.value;
+  if (event.target.matches('[data-auth-field="name"]')) state.authName = event.target.value;
+  if (event.target.matches('[data-auth-field="email"]')) state.authEmail = event.target.value;
+  if (event.target.matches('[data-auth-field="password"]')) state.authPassword = event.target.value;
   if (event.target.id === 'shift-start' || event.target.id === 'shift-end') {
     const start = root.querySelector('#shift-start')?.value;
     const end = root.querySelector('#shift-end')?.value;
@@ -392,6 +415,38 @@ root.addEventListener('click', (event) => {
   if (target.dataset.reminderTiming) { state.reminderTiming = target.dataset.reminderTiming; render(); return; }
   if (target.dataset.sleepPreference) { state.sleepPreference = target.dataset.sleepPreference; render(); return; }
   const action = target.dataset.action;
+  if (action === 'auth-create' || action === 'auth-login') {
+    if (state.page !== 'Auth') state.authReturnPage = state.page === 'Profile' ? 'Profile' : state.page === 'onboarding' ? 'onboarding' : 'Today';
+    state.authView = action === 'auth-create' ? 'create' : 'login';
+    state.authNotice = '';
+    state.page = 'Auth'; render(); return;
+  }
+  if (action === 'auth-forgot') { state.authView = 'forgot'; render(); return; }
+  if (action === 'auth-back') { state.page = state.authReturnPage; render(); return; }
+  if (action === 'auth-submit-create') {
+    const email = state.authEmail.trim();
+    const name = state.authName.trim() || state.userName.trim();
+    if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || state.authPassword.length < 8) {
+      toast('Add your name, a valid email, and a password with at least 8 characters'); return;
+    }
+    state.userName = name; state.authName = name; state.accountEmail = email; state.signedIn = true;
+    state.page = state.authReturnPage === 'onboarding' ? 'onboarding' : state.authReturnPage;
+    state.step = state.page === 'onboarding' ? 0 : state.step;
+    render(); toast('Demo account created on this device'); return;
+  }
+  if (action === 'auth-submit-login') {
+    const email = state.authEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !state.authPassword) { toast('Enter a valid email and password'); return; }
+    state.accountEmail = email; state.signedIn = true;
+    state.page = state.authReturnPage === 'Profile' ? 'Profile' : 'Today'; state.tab = state.page;
+    render(); toast('Demo sign-in complete'); return;
+  }
+  if (action === 'auth-submit-reset') {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.authEmail.trim())) { toast('Enter a valid email address'); return; }
+    state.authView = 'reset-sent'; render(); return;
+  }
+  if (action === 'sign-out') { state.signedIn = false; state.authReturnPage = 'Profile'; state.authView = 'signedout'; state.page = 'Auth'; render(); return; }
+  if (action === 'continue-guest') { state.page = state.authReturnPage === 'Profile' ? 'Profile' : 'Today'; state.tab = state.page; render(); return; }
   if (action === 'notifications') { state.page = 'Notifications'; render(); return; }
   if (action === 'profile') { state.page = 'Profile'; state.tab = 'Profile'; render(); return; }
   if (action === 'profile-detail') { state.profileDetail = target.dataset.detail; state.page = 'ProfileDetail'; state.tab = 'Profile'; render(); return; }
