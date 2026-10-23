@@ -1,4 +1,13 @@
 const root = document.querySelector('#app');
+let notificationSwipe = null;
+let suppressNotificationClick = false;
+const safeStorageRead = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+const safeStorageWrite = (key, value) => { try { localStorage.setItem(key, value); } catch { /* local preview may disable storage */ } };
+const safeStorageRemove = (key) => { try { localStorage.removeItem(key); } catch { /* local preview may disable storage */ } };
+const onboardingWasCompleted = safeStorageRead('circadia-onboarding-complete') === 'true';
+const onboardingWasSkipped = safeStorageRead('circadia-onboarding-skipped') === 'true';
+const readStoredArray = (key) => { try { const value = JSON.parse(safeStorageRead(key) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } };
+const todayISO = () => { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; };
 
 const days = [
   { short: 'SUN', date: '11', title: 'Day shift', time: '07:00 – 19:00', type: 'Day Shift', hours: 12 },
@@ -19,10 +28,20 @@ const state = {
   page: 'onboarding', step: 0, workPattern: 'Rotating shifts', rosterMethod: 'Enter shifts manually',
   userName: '', accountEmail: '', signedIn: false, authView: 'create', authReturnPage: 'onboarding', authNotice: '',
   authName: '', authEmail: '', authPassword: '',
+  guestPreview: false, onboardingComplete: onboardingWasCompleted,
+  scrollPositions: {}, profilePhoto: '', profileInfo: { birthDate: '', workplace: [], department: [], license: '', specialty: [], role: ['Registered nurse'], workplaceOther: '', departmentOther: '', specialtyOther: '', roleOther: '' },
+  selectedWellbeingTool: 'light', toolReturnPage: 'Today', wellbeingPreferences: { light: 'Daylight before shift', caffeine: 'Stop by 14:00', nap: '20 minutes' },
   tab: 'Today', scheduleView: 'Week', selectedDate: '2026-10-15', monthCursor: '2026-10-01', weekStart: '2026-10-12',
-  mood: 'Sleepy', sleep: 6, sleepSource: 'Enter manually', cycle: true,
+  mood: 'Sleepy', moodEntries: readStoredArray('circadia-mood-checkins'), sleepEntries: readStoredArray('circadia-sleep-checkins'),
+  cycleDraftFlow: 'medium', cycleDraftDays: 3,
+  sleep: 6, sleepSource: 'Enter manually', cycle: true, periodStarts: readStoredArray('circadia-period-starts'), showCycleForm: false, cycleDraftDate: todayISO(),
   notifications: { 'Notifications': true, 'Shift reminders': true, 'Sleep preferences': true },
-  shifts: [...days], profileDetail: '', profileReturnPage: 'Profile', shiftDate: '2026-10-15', shiftReturnPage: 'Schedule', shiftEditing: '',
+  notificationItems: [
+    { id: 'shift', title: 'Your night shift starts at 19:00', category: 'UPCOMING SHIFT', message: 'Take a moment to plan rest before work.', time: 'Today · 1 hour ago', icon: 'moon', page: 'Schedule', read: false },
+    { id: 'rest', title: 'Your sleep window is ready', category: 'REST PLAN', message: 'Your plan is shaped around your upcoming shifts.', time: 'Today · 8:00 AM', icon: 'bed', page: 'Today', read: false },
+    { id: 'recovery', title: 'Small check-ins add up', category: 'RECOVERY', message: 'Add a sleep check-in after your next rest.', time: 'Yesterday', icon: 'heart', page: 'Recovery', read: true },
+  ], notificationOpen: false,
+  shifts: readStoredArray('circadia-shifts').length ? readStoredArray('circadia-shifts') : [...days], profileDetail: '', profileReturnPage: 'Profile', shiftDate: '2026-10-15', shiftReturnPage: 'Schedule', shiftEditing: '',
   newShiftType: 'night', reminderTiming: '1 hour before', hospitalSharing: false, readNotifications: false,
   sleepPreference: 'After work', sleepGoal: '8 hours', weeklySummary: true, scheduleChanged: false, toastTimer: null, loadingTimer: null,
 };
@@ -42,6 +61,7 @@ const iconPaths = {
   pencil: '<path d="m15 5 4 4M4 20l4.2-.9L19 8.3a2.1 2.1 0 0 0-3-3L5.2 16.1 4 20Z"/><path d="m13.5 6.5 4 4"/>',
   imageUpload: '<rect x="3" y="5" width="15" height="15" rx="2.5"/><circle cx="8" cy="10" r="1.3"/><path d="m5 17 4-4 2.5 2.5 2-2 2.5 2.5M19 3v7m-3.5-3.5L19 3l3.5 3.5"/>',
   calendarAdd: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M16 3v4M8 3v4M3 10h18M12 13v5m-2.5-2.5h5"/>',
+  watch: '<rect x="6" y="7" width="12" height="10" rx="3"/><path d="M9 3h6l1 4M9 21h6l1-4"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   upload: '<path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -67,7 +87,8 @@ function statusBar() {
 }
 
 function header() {
-  return `<header class="app-header"><div class="brand">circadia</div><button class="icon-button bell-button" data-action="notifications" aria-label="Open notifications">${icon('bell', 14)}${state.readNotifications ? '' : '<i class="notification-dot"></i>'}</button></header>`;
+  const hasUnread = state.notificationItems.some((item) => !item.read);
+  return `<header class="app-header"><button class="brand-home" data-action="home" aria-label="Go to Today"><img class="brand-logo" src="assets/circadia-wordmark.png" alt="circadia"></button><button class="icon-button bell-button" data-action="notifications" aria-label="Open notifications">${icon('bell', 14)}${hasUnread ? '<i class="notification-dot"></i>' : ''}</button></header>`;
 }
 
 function nav() {
@@ -75,7 +96,7 @@ function nav() {
 }
 
 function progress(step) {
-  return `<div class="progress" aria-label="Step ${step + 1} of 4">${[0, 1, 2, 3].map((i) => `<span class="${i <= step ? 'on' : ''}"></span>`).join('')}</div><p class="progress-copy">STEP ${step + 1} OF 4</p>`;
+  return `<div class="onboarding-progress-row"><div class="progress" aria-label="Step ${step + 1} of 4">${[0, 1, 2, 3].map((i) => `<span class="${i <= step ? 'on' : ''}"></span>`).join('')}</div><button class="skip-onboarding" data-action="skip-onboarding">Skip</button></div><p class="progress-copy">STEP ${step + 1} OF 4</p>`;
 }
 
 function actionButtons(primary, secondary = 'Back') {
@@ -114,22 +135,24 @@ function today() {
   const nextShift = state.shifts.find((shift) => shift.isoDate === '2026-10-15' && shift.type !== 'Off');
   const nextType = nextShift?.type === 'Day Shift' ? 'Day' : 'Night';
   const firstName = state.userName.trim().split(/\s+/)[0] || 'there';
-  return `<p class="eyebrow">THURSDAY, OCTOBER 15</p><h1>Good afternoon, ${escapeHtml(firstName)}.</h1><p class="subhead">A little support for your next shift.</p><div class="card lime today-next-shift" data-action="edit-shift" data-date="${nextShift?.isoDate || '2026-10-15'}"><div class="card-title-row"><p class="eyebrow">NEXT SHIFT · TAP TO EDIT</p><span class="pill dark">${icon(nextType === 'Night' ? 'moon' : 'sun', 16)} ${nextType} Shift</span></div><h2 class="shift-time">${nextShift?.time || '19:00 – 07:30'}</h2><p class="fine">Thu, Oct 15 · starts in 1h 04m</p></div><div class="card sleep-window"><div class="card-title-row"><p class="eyebrow">REST PLAN</p><span class="pill">After work</span></div><h2>Your sleep window</h2><p class="strong-time">09:00–15:30</p><span class="pill aqua">6h 30m</span><p class="fine sleep-copy">Plan time to rest after work and before your next commitment.</p></div>${timeline()}<div class="section-heading"><p class="eyebrow">AROUND YOUR SHIFT</p><h2>One useful next step</h2></div>${[['sun', 'LIGHT', 'Plan your light exposure', 'Think about the light you’ll have at work and on your commute.'], ['coffee', 'CAFFEINE', 'Check in on caffeine', 'Notice when you have caffeine and how it affects your rest later.'], ['bed', 'NAP', 'Make room for a nap', 'If you plan to nap, leave yourself time to wake before heading in.']].map(([iconName, label, title, detail]) => `<div class="card steps-card"><span class="step-icon">${icon(iconName, 14)}</span><div><p class="eyebrow">${label}</p><h3>${title}</h3><p>${detail}</p></div><span class="open-link">Open ${icon('arrow', 9)}</span></div>`).join('')}<div class="card mint recovery-card"><p class="eyebrow">RECOVERY</p><h3>Build your sleep picture</h3><p class="fine">Add a sleep check-in after your next rest. Your recent entries will appear here.</p><button class="link-button" data-page="Recovery">View recovery ${icon('arrow', 10)}</button></div>`;
+  return `<p class="eyebrow">THURSDAY, OCTOBER 15</p><h1>Good afternoon, ${escapeHtml(firstName)}.</h1><p class="subhead">A little support for your next shift.</p><div class="card lime today-next-shift" data-action="edit-shift" data-date="${nextShift?.isoDate || '2026-10-15'}"><div class="card-title-row"><p class="eyebrow">NEXT SHIFT · TAP TO EDIT</p><span class="pill dark">${icon(nextType === 'Night' ? 'moon' : 'sun', 16)} ${nextType} Shift</span></div><h2 class="shift-time">${nextShift?.time || '19:00 – 07:30'}</h2><p class="fine">Thu, Oct 15 · starts in 1h 04m</p></div><div class="card sleep-window"><div class="card-title-row"><p class="eyebrow">REST PLAN</p><span class="pill">After work</span></div><h2>Your sleep window</h2><p class="strong-time">09:00–15:30</p><span class="pill aqua">6h 30m</span><p class="fine sleep-copy">Plan time to rest after work and before your next commitment.</p></div>${timeline()}<div class="section-heading"><p class="eyebrow">AROUND YOUR SHIFT</p><h2>One useful next step</h2></div>${[['sun', 'LIGHT', 'Plan your light exposure', 'Think about the light you’ll have at work and on your commute.'], ['coffee', 'CAFFEINE', 'Check in on caffeine', 'Notice when you have caffeine and how it affects your rest later.'], ['bed', 'NAP', 'Make room for a nap', 'If you plan to nap, leave yourself time to wake before heading in.']].map(([iconName, label, title, detail]) => `<div class="card steps-card" role="button" tabindex="0" aria-label="${title}. ${detail}" data-action="wellbeing-tool" data-tool="${label.toLowerCase()}"><span class="step-icon">${icon(iconName, 14)}</span><div><p class="eyebrow">${label}</p><h3>${title}</h3><p>${detail}</p></div><span class="open-link">Open ${icon('arrow', 9)}</span></div>`).join('')}<div class="card mint recovery-card"><p class="eyebrow">RECOVERY</p><h3>Build your sleep picture</h3><p class="fine">Add a sleep check-in after your next rest. Your recent entries will appear here.</p><button class="link-button" data-page="Recovery">View recovery ${icon('arrow', 10)}</button></div>`;
 }
 
 function weekCalendar() {
   const start = dateFromISO(state.weekStart);
   const end = new Date(start); end.setDate(end.getDate() + 6);
-  const shifts = state.shifts.filter((shift) => shift.isoDate >= state.weekStart && shift.isoDate <= isoFromDate(end) && shift.type !== 'Off');
+  const shifts = state.shifts.filter((shift) => shift.isoDate >= state.weekStart && shift.isoDate <= isoFromDate(end));
   if (!shifts.length) return '<div class="empty-note">No shifts planned this week. Add a shift to get started.</div>';
   return shifts.map((shift) => {
     const selected = state.selectedDate === shift.isoDate;
     const today = shift.isoDate === '2026-10-15';
     const past = shift.isoDate < '2026-10-15';
-    const type = shift.type === 'Night Shift' ? 'night' : shift.type === 'Day Shift' ? 'day' : 'sick';
-    const statusIcon = type === 'night' ? 'moon' : type === 'day' ? 'sun' : 'heart';
-    const statusName = type === 'night' ? 'Night' : type === 'day' ? 'Day' : 'Sick';
-    return `<button class="schedule-row ${selected ? 'selected' : ''}" data-action="edit-shift" data-date="${shift.isoDate}"><span class="schedule-date">${today ? '<span class="today-mark">TODAY</span>' : ''}<span class="weekday ${past ? 'past-day' : ''}">${shift.short}</span><strong>${Number(shift.date)}</strong></span><span class="schedule-label"><strong>${shift.type === 'Sick' ? 'Sick day' : shift.title}</strong><small>${shift.time.replaceAll(' – ', '–')}</small></span><span class="shift-kind ${type}">${icon(statusIcon, 14)} ${statusName}</span><span class="duration-pill">${shift.hours ?? 12}h</span></button>`;
+    const type = shift.type === 'Night Shift' ? 'night' : shift.type === 'Day Shift' ? 'day' : shift.type === 'Off' ? 'off' : 'sick';
+    const statusIcon = type === 'night' ? 'moon' : type === 'day' ? 'sun' : type === 'off' ? 'calendar' : 'heart';
+    const statusName = type === 'night' ? 'Night' : type === 'day' ? 'Day' : type === 'off' ? 'Off' : 'Sick';
+    const shiftTitle = type === 'off' ? 'Day Off' : type === 'sick' ? 'Sick day' : shift.title;
+    const shiftTime = shift.time || (type === 'off' ? 'Recovery day' : 'Unavailable');
+    return `<div class="shift-swipe-wrap"><span class="shift-swipe-hint">Delete ${icon('trash', 16)}</span><button class="schedule-row ${selected ? 'selected' : ''} ${past ? 'past' : ''}" data-action="edit-shift" data-date="${shift.isoDate}"><span class="schedule-date">${today ? '<span class="today-mark">TODAY</span>' : ''}<span class="weekday ${past ? 'past-day' : ''}">${shift.short}</span><strong>${Number(shift.date)}</strong></span><span class="schedule-label"><strong>${shiftTitle}</strong><small>${shiftTime.replaceAll(' – ', '–')}</small></span><span class="shift-kind ${type}">${icon(statusIcon, 14)} ${statusName}</span>${type === 'off' ? '<span class="duration-pill off">DAY OFF</span>' : `<span class="duration-pill">${shift.hours ?? 12}h</span>`}</button></div>`;
   }).join('');
 }
 
@@ -146,7 +169,8 @@ function monthCalendar() {
     const shift = state.shifts.find((item) => item.isoDate === dateStr);
     const type = shift?.type === 'Day Shift' ? 'day' : shift?.type === 'Night Shift' ? 'night' : shift?.type === 'Sick' ? 'sick' : shift?.type === 'Off' ? 'off' : '';
     const marker = type ? `<span class="day-marker ${type}">${type === 'day' ? 'D' : type === 'night' ? 'N' : type === 'sick' ? 'S' : 'O'}</span>` : '';
-    return `<button class="day-cell ${state.selectedDate === dateStr ? 'selected' : ''}" data-action="edit-date" data-date="${dateStr}" aria-label="${shift ? 'Edit' : 'Add'} shift on ${dateStr}"><span>${currentDate}</span>${marker}</button>`;
+    const past = dateStr < '2026-10-15';
+    return `<button class="day-cell ${state.selectedDate === dateStr ? 'selected' : ''} ${past ? 'past' : ''}" data-action="edit-date" data-date="${dateStr}" aria-label="${shift ? 'Edit' : 'Add'} shift on ${dateStr}${past ? ', past day' : ''}"><span>${currentDate}</span>${marker}</button>`;
   }).join('');
   return `<div class="month-grid-card"><div class="weekdays">${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day) => `<span>${day}</span>`).join('')}</div><div class="days">${cells}</div><div class="legend"><span><i class="day">D</i>Day</span><span><i class="night">N</i>Night</span><span><i class="off">O</i>Off</span><span><i class="sick">S</i>Sick</span></div></div>`;
 }
@@ -196,17 +220,30 @@ function profileDetailPage() {
   const back = `<button class="btn ghost detail-back" data-action="profile-back">${icon('arrowLeft', 16)} Profile</button>`;
   if (detail === 'notifications') return `${back}<p class="eyebrow">YOUR REMINDERS</p><h1>Notifications</h1><p class="subhead">Choose which updates Circadia can send you.</p><div class="card detail-card"><h2>Stay in the loop</h2>${preference('Notifications', 'Allow Circadia reminders', state.notifications.Notifications)}${preference('Shift reminders', 'A heads-up before work', state.notifications['Shift reminders'])}${preference('Weekly recovery summary', 'A private recap of your check-ins', state.weeklySummary)}</div>`;
   if (detail === 'reminders') return `${back}<p class="eyebrow">BEFORE YOUR SHIFT</p><h1>Shift reminders</h1><p class="subhead">Choose when you would like a gentle reminder.</p><div class="card detail-card">${['At shift start', '30 minutes before', '1 hour before', '2 hours before', 'Off'].map((timing) => `<button class="detail-choice ${state.reminderTiming === timing ? 'selected' : ''}" data-reminder-timing="${timing}"><span>${timing}</span><span class="radio ${state.reminderTiming === timing ? 'checked' : ''}"></span></button>`).join('')}</div>`;
-  if (detail === 'sleep-preferences') return `${back}<p class="eyebrow">PERSONALIZE YOUR PLAN</p><h1>Sleep preferences</h1><p class="subhead">Shape recovery guidance around your routine.</p><div class="card detail-card"><h2>Sleep window timing</h2>${['After work', 'Before work', 'Split rest'].map((timing) => `<button class="detail-choice ${state.sleepPreference === timing ? 'selected' : ''}" data-sleep-preference="${timing}"><span>${timing}</span><span class="radio ${state.sleepPreference === timing ? 'checked' : ''}"></span></button>`).join('')}<div class="settings-divider"></div><label class="field-label">SLEEP GOAL<select class="field" data-sleep-goal><option ${state.sleepGoal === '7 hours' ? 'selected' : ''}>7 hours</option><option ${state.sleepGoal === '8 hours' ? 'selected' : ''}>8 hours</option><option ${state.sleepGoal === '9 hours' ? 'selected' : ''}>9 hours</option></select></label></div>`;
+  if (detail === 'sleep-preferences') return `${back}<p class="eyebrow">PERSONALIZE YOUR PLAN</p><h1>Sleep preferences</h1><p class="subhead">Shape recovery guidance around your routine.</p><div class="card detail-card"><h2>Sleep window timing</h2>${['After work', 'Before work', 'Split rest'].map((timing) => `<button class="detail-choice ${state.sleepPreference === timing ? 'selected' : ''}" data-sleep-preference="${timing}"><span>${timing}</span><span class="radio ${state.sleepPreference === timing ? 'checked' : ''}"></span></button>`).join('')}<div class="settings-divider"></div><label class="field-label sleep-goal-control">SLEEP GOAL<select class="field sleep-goal-select" data-sleep-goal><option ${state.sleepGoal === '7 hours' ? 'selected' : ''}>7 hours</option><option ${state.sleepGoal === '8 hours' ? 'selected' : ''}>8 hours</option><option ${state.sleepGoal === '9 hours' ? 'selected' : ''}>9 hours</option></select></label></div>`;
   if (detail === 'data') return `${back}<p class="eyebrow">YOUR INFORMATION</p><h1>Personal data</h1><p class="subhead">Your wellbeing information belongs to you.</p><div class="card detail-card"><div class="privacy-intro">${icon('heart', 22)}<strong>Your data stays personal.</strong></div><p class="detail-copy">Sleep check-ins and shift details are used to shape your personal recovery view. This prototype stores changes in this browser session.</p><button class="detail-action" data-action="export-data">${icon('arrow', 17)} Export my data</button><button class="detail-action danger" data-action="delete-data">Delete my check-ins</button></div>`;
   return `${back}<p class="eyebrow">YOUR PRIVACY</p><h1>Hospital data sharing</h1><p class="subhead">Your schedule and recovery information stay yours.</p><div class="card detail-card sharing-setting"><span class="setting-icon">${icon('building', 22)}</span><div><h2>Share with my hospital</h2><p class="fine">${state.hospitalSharing ? 'Your hospital can view the information you choose to share.' : 'Off. Your hospital cannot see your personal recovery information.'}</p></div><button class="switch ${state.hospitalSharing ? 'on' : ''}" data-action="toggle-sharing" aria-label="Toggle hospital data sharing"></button></div><div class="card privacy-note-card">${icon('info', 17)} You can change this choice at any time.</div>`;
 }
 
 function loadingScreen() {
-  return `<div class="loading-brand"><span class="loading-mark">${icon('cycle', 34)}</span><strong>circadia</strong></div><div class="loading-content"><span class="loading-spinner"></span><p class="eyebrow">YOUR PLAN IS COMING TOGETHER</p><h1>Building your recovery plan</h1><p class="subhead">Lining up rest, work and the next useful steps.</p><div class="loading-progress"><i></i></div></div><p class="loading-footnote">MADE FOR THE RHYTHM YOU WORK</p>`;
+  return `<div class="loading-brand"><img src="assets/circadia-wordmark.png" alt="circadia"></div><div class="loading-content"><span class="loading-spinner"></span><p class="eyebrow">YOUR PLAN IS COMING TOGETHER</p><h1>Building your recovery plan</h1><p class="subhead">Lining up rest, work and the next useful steps.</p><div class="loading-progress"><i></i></div></div><p class="loading-footnote">MADE FOR THE RHYTHM YOU WORK</p>`;
+}
+
+function guestPreview() {
+  const title = state.tab === 'Today' ? 'Today' : state.tab === 'Schedule' ? 'Your schedule' : state.tab === 'Recovery' ? 'Recovery' : 'Profile';
+  return `<p class="eyebrow">A PREVIEW OF YOUR PERSONAL SPACE</p><h1>${title}</h1><p class="subhead">Your personal Circadia plan will appear here.</p><div class="ghost-content" aria-label="Preview of this screen"><div class="skeleton-card"><i class="skeleton-line wide"></i><i class="skeleton-line medium"></i><i class="skeleton-line short"></i><div class="skeleton-block"></div></div><div class="skeleton-card"><i class="skeleton-line medium"></i><i class="skeleton-line wide"></i><i class="skeleton-line short"></i></div><div class="skeleton-card compact"><i class="skeleton-line wide"></i><i class="skeleton-line medium"></i></div></div><div class="card guest-prompt"><p class="eyebrow">MAKE IT YOURS</p><h2>Start with your own shift plan</h2><p class="fine">Create an account or log in to save your profile, shifts and check-ins. You can also go back and set up your schedule first.</p><button class="btn" data-action="auth-create">Create an account <span>${icon('arrow', 16)}</span></button><button class="btn ghost" data-action="auth-login">Log in</button><button class="guest-onboarding-link" data-action="return-onboarding">Go back to onboarding</button></div>`;
+}
+
+function notificationCenterLegacy() {
+  return `<p class="eyebrow">YOUR UPDATES</p><div class="notification-title"><h1>Notifications</h1><button class="text-action" data-action="mark-read">Mark all read</button></div><div class="notification-list"><button class="card notification-card" data-page="Schedule"><span class="notification-icon">${icon('moon', 19)}</span><span><span class="eyebrow">UPCOMING SHIFT</span><strong>Your night shift starts at 19:00</strong><span class="fine">Take a moment to plan rest before work.</span><small>Today · 1 hour ago</small></span></button><button class="card notification-card" data-page="Today"><span class="notification-icon">${icon('bed', 19)}</span><span><span class="eyebrow">REST PLAN</span><strong>Your sleep window is ready</strong><span class="fine">Your plan is shaped around your upcoming shifts.</span><small>Today · 8:00 AM</small></span></button><button class="card notification-card ${state.readNotifications ? 'read' : ''}" data-page="Recovery"><span class="notification-icon">${icon('heart', 19)}</span><span><span class="eyebrow">RECOVERY</span><strong>Small check-ins add up</strong><span class="fine">Add a sleep check-in after your next rest.</span><small>Yesterday</small></span></button></div><div class="card notification-privacy">${icon('info', 16)} Notifications are private to you.</div>`;
 }
 
 function notificationCenter() {
-  return `<p class="eyebrow">YOUR UPDATES</p><div class="notification-title"><h1>Notifications</h1><button class="text-action" data-action="mark-read">Mark all read</button></div><div class="notification-list"><button class="card notification-card" data-page="Schedule"><span class="notification-icon">${icon('moon', 19)}</span><span><span class="eyebrow">UPCOMING SHIFT</span><strong>Your night shift starts at 19:00</strong><span class="fine">Take a moment to plan rest before work.</span><small>Today · 1 hour ago</small></span></button><button class="card notification-card" data-page="Today"><span class="notification-icon">${icon('bed', 19)}</span><span><span class="eyebrow">REST PLAN</span><strong>Your sleep window is ready</strong><span class="fine">Your plan is shaped around your upcoming shifts.</span><small>Today · 8:00 AM</small></span></button><button class="card notification-card ${state.readNotifications ? 'read' : ''}" data-page="Recovery"><span class="notification-icon">${icon('heart', 19)}</span><span><span class="eyebrow">RECOVERY</span><strong>Small check-ins add up</strong><span class="fine">Add a sleep check-in after your next rest.</span><small>Yesterday</small></span></button></div><div class="card notification-privacy">${icon('info', 16)} Notifications are private to you.</div>`;
+  const unread = state.notificationItems.filter((item) => !item.read).length;
+  const list = state.notificationItems.length
+    ? `<div class="notification-list">${state.notificationItems.map((item) => `<div class="notification-swipe-wrap"><span class="swipe-hint swipe-hint-read">${icon('check', 17)} Mark as read</span><span class="swipe-hint swipe-hint-delete">Delete ${icon('trash', 17)}</span><button class="card notification-card ${item.read ? 'read' : 'unread'}" data-action="open-notification" data-notification-id="${item.id}" data-target-page="${item.page}"><span class="notification-icon">${icon(item.icon, 19)}</span><span class="notification-copy"><span class="notification-meta"><span class="eyebrow">${item.category}</span>${item.read ? '<span class="read-label">Read</span>' : '<i class="unread-indicator" aria-label="Unread"></i>'}</span><strong>${escapeHtml(item.title)}</strong><span class="fine">${escapeHtml(item.message)}</span><small>${escapeHtml(item.time)}</small></span></button></div>`).join('')}</div>`
+    : `<div class="card empty-notifications"><span class="notification-empty-icon">${icon('bell', 22)}</span><h2>You’re all caught up</h2><p class="fine">New shift and recovery updates will appear here.</p></div>`;
+  return `<div class="notification-overlay"><button class="notification-scrim" data-action="close-notifications" aria-label="Close notifications"></button><section class="notification-sheet" role="dialog" aria-modal="true" aria-labelledby="notification-heading"><header class="notification-sheet-head"><span class="eyebrow">YOUR UPDATES${unread ? ` · ${unread} NEW` : ''}</span><button class="notification-close" data-action="close-notifications" aria-label="Close">×</button><h1 id="notification-heading">Notifications</h1></header><div class="notification-scroll-content">${list}<div class="card notification-privacy">${icon('info', 16)} Notifications are private to you.</div></div><footer class="notification-actions"><button class="text-action" data-action="mark-read" ${unread ? '' : 'disabled'}>Mark all read</button><button class="text-action danger-text" data-action="delete-all-notifications" ${state.notificationItems.length ? '' : 'disabled'}>Delete all</button></footer></section></div>`;
 }
 
 function openShiftEditor(dateISO, returnPage = state.page, forceNew = false) {
@@ -238,18 +275,95 @@ function shiftEditorPage() {
   return `<button class="btn ghost detail-back" data-action="shift-back">${icon('arrowLeft', 16)} ${state.shiftReturnPage === 'onboarding' ? 'Onboarding' : state.shiftReturnPage}</button><p class="eyebrow">YOUR ROSTER</p><h1>${pageTitle}</h1><p class="subhead">Keep your schedule up to date, one shift at a time.</p><div class="card add-form"><label class="field-label">DATE<input class="field" type="date" id="shift-date" value="${state.shiftDate}"></label><label class="field-label">SHIFT TYPE<div class="status-options">${[['Day','day'],['Night','night'],['Off','off'],['Sick','sick']].map(([label,key]) => `<button type="button" class="status-option ${state.newShiftType === key ? `active ${key}` : ''}" data-shift-kind="${key}">${label}</button>`).join('')}</div></label>${state.newShiftType === 'off' || state.newShiftType === 'sick' ? '' : `<div class="field-row"><label class="field-label">START<input class="field" type="time" id="shift-start" value="${start}"></label><label class="field-label">END<input class="field" type="time" id="shift-end" value="${end}"></label></div>`}<div class="shift-length-card"><strong>SHIFT LENGTH</strong><b>${state.newShiftType === 'off' || state.newShiftType === 'sick' ? '0h' : `${hoursBetween(start, end)}h`}</b><small>Scheduled span · breaks not deducted.</small></div><button class="btn" data-action="save-shift">${shift ? 'Save changes' : 'Add shift'} <span>${icon('check', 17)}</span></button>${shift ? `<button class="btn delete-shift-button" data-action="delete-shift" data-date="${shift.isoDate}">${icon('trash', 17)} Delete shift</button>` : ''}</div>`;
 }
 
-function recovery() {
+function recoveryLegacy() {
   const feelings = [['Energized', 'sparkle'], ['Calm', 'calm'], ['Okay', 'circle'], ['Sleepy', 'moon'], ['Stressed', 'rotate'], ['Irritated', 'sun']];
-  return `<p class="eyebrow">A GENTLER WAY TO TRACK</p><h1>Recovery</h1><p class="subhead">Small steps add up over time.</p><div class="card pattern-card"><p class="eyebrow">YOUR PERSONAL PATTERNS</p><h3>Patterns take time.</h3><p class="fine">There’s no right score. Your check-ins are a private way to see how you’re doing.</p></div><div class="card"><p class="eyebrow">A QUICK CHECK-IN</p><h3>How are you feeling right now?</h3><div class="mood-grid">${feelings.map(([feeling, iconName]) => `<button class="mood ${state.mood === feeling ? 'selected' : ''}" data-mood="${feeling}">${icon(iconName, 15)}<span>${feeling}</span></button>`).join('')}</div></div><div class="card"><p class="eyebrow">SLEEP TRACKER</p><h3>How did you sleep?</h3><p class="fine">Record an estimate or choose a connected source.</p><div class="sleep-reading">${Number(state.sleep).toFixed(0)} hours</div><div class="source-buttons"><button class="source-button ${state.sleepSource === 'Enter manually' ? 'active' : ''}" data-sleep-source="Enter manually">Enter manually</button><button class="source-button ${state.sleepSource === 'Wearable' ? 'active' : ''}" data-sleep-source="Wearable">Apple Health / wearable</button></div><div class="sleep-range"><span>0h</span><input aria-label="Hours slept" type="range" min="0" max="12" step="0.5" value="${state.sleep}" data-sleep-range><span>12h</span></div></div><div class="card cycle-card"><p class="eyebrow">OPTIONAL · PRIVATE</p><div class="cycle-heading"><span>${icon('cycle', 17)}</span><div><h3>Menstrual cycle</h3><p class="fine">Log a period start to help you notice your own patterns alongside shifts and rest.</p></div></div><p class="private-note">This data is never shared with your hospital.</p><button class="btn secondary log-btn" data-action="log-day">${icon('plus', 14)} Log today</button><div class="privacy-strip">${icon('info', 12)} This data is private and never shared with your hospital.</div></div><div class="card"><p class="eyebrow">TRENDS</p><h3>Your recent trend</h3><p class="fine">Your sleep check-ins will build a picture of your routine over time. Add a few entries to get started.</p></div>`;
+  return `<p class="eyebrow">A GENTLER WAY TO TRACK</p><h1>Recovery</h1><p class="subhead">Small steps add up over time.</p><div class="card pattern-card"><p class="eyebrow">YOUR PERSONAL PATTERNS</p><h3>Patterns take time.</h3><p class="fine">There’s no right score. Your check-ins are a private way to see how you’re doing.</p></div><div class="card"><p class="eyebrow">A QUICK CHECK-IN</p><h3>How are you feeling right now?</h3><div class="mood-grid">${feelings.map(([feeling, iconName]) => `<button class="mood ${state.mood === feeling ? 'selected' : ''}" data-mood="${feeling}">${icon(iconName, 15)}<span>${feeling}</span></button>`).join('')}</div></div><div class="card"><p class="eyebrow">SLEEP TRACKER</p><h3>How did you sleep?</h3><p class="fine">Record an estimate or choose a connected source.</p><div class="sleep-reading">${Number(state.sleep).toFixed(0)} hours</div><div class="source-buttons"><button class="source-button ${state.sleepSource === 'Enter manually' ? 'active' : ''}" data-sleep-source="Enter manually">Enter manually</button><button class="source-button ${state.sleepSource === 'Wearable' ? 'active' : ''}" data-sleep-source="Wearable">Apple Health / wearable</button></div><div class="sleep-range"><span>0h</span><input aria-label="Hours slept" type="range" min="0" max="12" step="0.5" value="${state.sleep}" data-sleep-range><span>12h</span></div></div><div class="card cycle-card"><p class="eyebrow">OPTIONAL · PRIVATE</p><div class="cycle-heading"><span class="cycle-symbol">${icon('heart', 21)}</span><div><h3>Menstrual cycle</h3><p class="fine">Log a period start to help you notice your own patterns alongside shifts and rest.</p></div></div><p class="private-note">This data is never shared with your hospital.</p><button class="btn secondary log-btn" data-action="log-day">${icon('plus', 14)} Log today</button><div class="privacy-strip">${icon('info', 12)} This data is private and never shared with your hospital.</div></div><div class="card"><p class="eyebrow">TRENDS</p><h3>Your recent trend</h3><p class="fine">Your sleep check-ins will build a picture of your routine over time. Add a few entries to get started.</p></div>`;
+}
+
+function cycleCard() {
+  const latest = [...state.periodStarts].sort((a, b) => b.date.localeCompare(a.date))[0];
+  const flowOptions = ['Spotting', 'Light', 'Medium', 'Heavy'];
+  const daysOptions = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const flowLabels = { spotting: 'Spotting', light: 'Light', medium: 'Medium', heavy: 'Heavy' };
+  const latestDate = latest ? new Date(`${latest.date}T12:00:00`).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  const logged = latest ? `<div class='cycle-last-entry'><span class='cycle-entry-icon'>${icon('check', 16)}</span><span><strong>Period started ${escapeHtml(latestDate)}</strong><small>${flowLabels[latest.flow] || latest.flow} flow · usually ${latest.usualDays} days</small></span></div>` : '';
+  const form = state.showCycleForm ? `<div class='cycle-entry-form'><label class='field-label'>PERIOD START DATE<input class='field' type='date' id='cycle-start-date' value='${state.cycleDraftDate}' max='${todayISO()}'></label><label class='field-label'>FLOW<div class='cycle-choice-row'>${flowOptions.map((flow) => `<button type='button' class='cycle-choice ${state.cycleDraftFlow === flow.toLowerCase() ? 'selected' : ''}' data-cycle-flow='${flow.toLowerCase()}'>${flow}</button>`).join('')}</div></label><label class='field-label'>HOW LONG DOES YOUR PERIOD USUALLY LAST?<select class='field' id='cycle-usual-days'>${daysOptions.map((days) => `<option value='${days}' ${(state.cycleDraftDays || 3) === days ? 'selected' : ''}>${days} days</option>`).join('')}</select></label><p class='fine cycle-form-note'>These are personal estimates to help you notice patterns over time.</p><div class='cycle-form-actions'><button class='btn' data-action='save-period'>Save period</button><button class='btn ghost' data-action='cancel-period'>Cancel</button></div></div>` : `<button class='btn secondary log-btn' data-action='log-day'>${icon('plus', 14)} Log today</button>`;
+  return `<div class='card cycle-card'><p class='eyebrow'>OPTIONAL · PRIVATE</p><div class='cycle-heading'><span class='cycle-symbol'>${icon('heart', 21)}</span><div><h3>Menstrual cycle</h3><p class='fine'>Log a period start to help you notice your own patterns alongside shifts and rest.</p></div></div><p class='private-note'>This data is never shared with your hospital.</p>${logged}${form}<div class='privacy-strip'>${icon('info', 12)} This data is private and never shared with your hospital.</div></div>`;
+}
+
+function sleepTrend() {
+  const entries = [...state.sleepEntries].sort((a, b) => a.date.localeCompare(b.date)).slice(-7);
+  if (!entries.length) return `<div class='card trend-card'><p class='eyebrow'>TRENDS</p><h3>Your recent trend</h3><p class='fine'>Save a sleep check-in to start seeing your hours of rest over time.</p><div class='trend-empty'><div class='trend-empty-axis'><span>12h</span><span>6h</span><span>0h</span></div><div class='trend-empty-grid'><i></i><i></i><i></i></div><div class='trend-empty-caption'>Your sleep history will appear here</div></div></div>`;
+  const values = entries.map((entry) => Number(entry.hours));
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const latest = values.at(-1);
+  const first = values[0];
+  const trendText = values.length > 1 ? (latest > first ? 'up' : latest < first ? 'down' : 'steady') : 'building';
+  const bars = entries.map((entry) => { const height = Math.max(4, Math.min(100, Number(entry.hours) / 12 * 100)); const day = new Date(`${entry.date}T12:00:00`).toLocaleDateString('en', { weekday: 'short' }); return `<div class='trend-bar-column' title='${escapeHtml(entry.date)}: ${Number(entry.hours).toFixed(1)} hours'><span class='trend-bar-value'>${Number(entry.hours).toFixed(1)}</span><i class='trend-bar' style='height:${height}%'></i><small>${day}</small></div>`; }).join('');
+  return `<div class='card trend-card'><p class='eyebrow'>TRENDS</p><h3>Your recent trend</h3><p class='fine'>Sleep recorded from your check-ins.</p><div class='trend-summary'><strong>${average.toFixed(1)}h</strong><span>average · trending ${trendText}</span></div><div class='trend-chart' role='img' aria-label='Sleep hours across your last ${entries.length} check-ins'>${bars}</div><div class='trend-chart-legend'><span>0h</span><span>6h</span><span>12h</span></div><p class='trend-data-note'>Based on ${entries.length} saved ${entries.length === 1 ? 'check-in' : 'check-ins'}.</p></div>`;
+}
+
+function recoveryBase() {
+  const feelings = [['Energized', 'sparkle'], ['Calm', 'calm'], ['Okay', 'circle'], ['Sleepy', 'moon'], ['Stressed', 'rotate'], ['Irritated', 'sun']];
+  return `<p class='eyebrow'>A GENTLER WAY TO TRACK</p><h1>Recovery</h1><p class='subhead'>Small steps add up over time.</p><div class='card pattern-card'><p class='eyebrow'>YOUR PERSONAL PATTERNS</p><h3>Patterns take time.</h3><p class='fine'>There’s no right score. Your check-ins are a private way to see how you’re doing.</p></div><div class='card'><p class='eyebrow'>A QUICK CHECK-IN</p><h3>How are you feeling right now?</h3><div class='mood-grid'>${feelings.map(([feeling, iconName]) => `<button class='mood ${state.mood === feeling ? 'selected' : ''}' data-mood='${feeling}'>${icon(iconName, 15)}<span>${feeling}</span></button>`).join('')}</div></div><div class='card'><p class='eyebrow'>SLEEP TRACKER</p><h3>How did you sleep?</h3><p class='fine'>Record an estimate or choose a connected source.</p><div class='sleep-reading'>${Number(state.sleep).toFixed(1)} hours</div><div class='source-buttons'><button class='source-button ${state.sleepSource === 'Enter manually' ? 'active' : ''}' data-sleep-source='Enter manually'>Enter manually</button><button class='source-button ${state.sleepSource === 'Wearable' ? 'active' : ''}' data-sleep-source='Wearable'>Apple Health / wearable</button></div><div class='sleep-range'><span>0h</span><input aria-label='Hours slept' type='range' min='0' max='12' step='0.5' value='${state.sleep}' data-sleep-range><span>12h</span></div><button class='btn save-sleep-button' data-action='save-sleep'>Save sleep check-in</button></div>${cycleCard()}${sleepTrend()}`;
+}
+
+function recovery() {
+  const markup = recoveryBase();
+  if (state.sleepSource !== 'Wearable') return markup;
+  const wearablePanel = `<div class='wearable-sync-card'><div class='wearable-sync-head'><span class='wearable-watch'>${icon('watch', 20)}</span><span><strong>Apple Watch</strong><small>Connected · sample sync</small></span><i class='sync-status-dot'></i></div><div class='wearable-sleep-reading'><strong>${Number(state.sleep).toFixed(1)}<small> hours</small></strong><span>Latest sleep</span></div><div class='wearable-sleep-meta'><span><small>TIME ASLEEP</small><strong>${Number(state.sleep).toFixed(1)} hr</strong></span><span><small>LAST SYNC</small><strong>Today · 7:12 AM</strong></span></div><p class='wearable-disclaimer'>Example connected-device data for this prototype. Live Apple Health access requires a native iPhone app and your permission.</p></div>`;
+  return markup.replace(/<div class='sleep-range'>[\s\S]*?<\/div><button class='btn save-sleep-button'[\s\S]*?<\/button>/, wearablePanel);
 }
 
 function preference(label, detail, on) {
   return `<div class="toggle-row"><span><strong>${label}</strong><small>${detail}</small></span><button class="switch ${on ? 'on' : ''}" data-toggle-pref="${label}" aria-label="Toggle ${label}"></button></div>`;
 }
 
+function profileLegacy() {
+  const name = state.userName.trim() || 'Your profile';
+  return `<p class="eyebrow">YOUR SPACE, YOUR CHOICES</p><h1>Profile</h1><p class="subhead">Manage your routine and wellbeing preferences.</p><div class="card person-card"><span class="avatar">${escapeHtml(name[0] || 'J')}</span><span><strong>${escapeHtml(name)}</strong><small>${escapeHtml(state.profileInfo.role || 'Registered nurse')} · ${escapeHtml(state.workPattern)}</small></span></div><p class="eyebrow section-label">PREFERENCES</p><div class="card settings-card"><h2>Preferences</h2><p class="fine">Shape your reminders and sleep plan.</p><div class="settings-divider"></div>${profileRow('bell', 'Notifications', state.notifications.Notifications ? 'On' : 'Off', 'notifications')}${profileRow('clock', 'Shift reminders', state.reminderTiming, 'reminders')}${profileRow('moon', 'Sleep preferences', state.sleepPreference, 'sleep-preferences')}</div><div class="card settings-card privacy-card"><h2>Privacy</h2><p class="fine">Your wellbeing information belongs to you.</p><div class="settings-divider"></div>${profileRow('heart', 'Personal Data', 'Private', 'data')}${profileRow('moon', 'Hospital data sharing', state.hospitalSharing ? 'On' : 'Off', 'sharing')}</div><div class="card settings-card account-card"><p class="eyebrow">ACCOUNT</p><h2>${state.signedIn ? 'You’re logged in' : 'Save your Circadia profile'}</h2><p class="fine">${state.signedIn ? `Signed in as ${escapeHtml(state.accountEmail || name)}. Your account is active on this device.` : 'You’re using Circadia without an account. Create one to save your profile, shifts, check-ins and preferences, or log in to access an existing account.'}</p>${state.signedIn ? '<button class="detail-action danger" data-action="sign-out">Log out</button>' : '<button class="btn" data-action="auth-create">Create an account</button><button class="btn ghost" data-action="auth-login">Log in to an existing account</button>'}</div><p class="tiny-label footer-brand">CIRCADIA · A PERSONAL GUIDE TO SHIFT WORK</p>`;
+}
+
 function profile() {
   const name = state.userName.trim() || 'Your profile';
-  return `<p class="eyebrow">YOUR SPACE, YOUR CHOICES</p><h1>Profile</h1><p class="subhead">Manage your routine and wellbeing preferences.</p><div class="card person-card"><span class="avatar">${escapeHtml(name[0] || 'J')}</span><span><strong>${escapeHtml(name)}</strong><small>Registered nurse · ${escapeHtml(state.workPattern)}</small></span></div><p class="eyebrow section-label">PREFERENCES</p><div class="card settings-card"><h2>Preferences</h2><p class="fine">Shape your reminders and sleep plan.</p><div class="settings-divider"></div>${profileRow('bell', 'Notifications', state.notifications.Notifications ? 'On' : 'Off', 'notifications')}${profileRow('clock', 'Shift reminders', state.reminderTiming, 'reminders')}${profileRow('moon', 'Sleep preferences', state.sleepPreference, 'sleep-preferences')}</div><div class="card settings-card privacy-card"><h2>Privacy</h2><p class="fine">Your wellbeing information belongs to you.</p><div class="settings-divider"></div>${profileRow('heart', 'Personal Data', 'Private', 'data')}${profileRow('moon', 'Hospital data sharing', state.hospitalSharing ? 'On' : 'Off', 'sharing')}</div><div class="card settings-card account-card"><p class="eyebrow">ACCOUNT</p><h2>${state.signedIn ? 'You’re logged in' : 'Save your Circadia profile'}</h2><p class="fine">${state.signedIn ? `Signed in as ${escapeHtml(state.accountEmail || name)}. Your account is active on this device.` : 'You’re using Circadia without an account. Create one to save your profile, shifts, check-ins and preferences, or log in to access an existing account.'}</p>${state.signedIn ? '<button class="detail-action danger" data-action="sign-out">Log out</button>' : '<button class="btn" data-action="auth-create">Create an account</button><button class="btn ghost" data-action="auth-login">Log in to an existing account</button>'}</div><p class="tiny-label footer-brand">CIRCADIA · A PERSONAL GUIDE TO SHIFT WORK</p>`;
+  const avatar = state.profilePhoto ? `<img class="profile-photo" src="${state.profilePhoto}" alt="Profile photo">` : escapeHtml(name[0] || 'J');
+  const accountSection = state.signedIn
+    ? `<section class="profile-account-section"><p class="eyebrow">ACCOUNT</p><h2>Your Circadia profile is saved</h2><p class="fine">Signed in as ${escapeHtml(state.accountEmail || name)}. Your shifts, check-ins and preferences are linked to this account.</p><button class="detail-action danger" data-action="sign-out">Log out</button></section>`
+    : `<section class="profile-account-section"><p class="eyebrow">ACCOUNT</p><h2>Save your Circadia profile</h2><p class="fine">You’re using Circadia without an account. Create one to save your profile, shifts, check-ins and preferences, or log in to access an existing account.</p><div class="profile-account-actions"><button class="btn" data-action="auth-create">Create an account</button><button class="btn ghost" data-action="auth-login">Log in to an existing account</button></div></section>`;
+  return `<p class="eyebrow">YOUR SPACE, YOUR CHOICES</p><h1>Profile</h1><p class="subhead">Manage your routine and wellbeing preferences.</p><div class="card profile-account-card ${state.signedIn ? 'is-signed-in' : 'is-guest'}"><div class="person-card"><span class="avatar">${avatar}</span><span class="person-copy"><strong>${escapeHtml(name)}</strong><small>${escapeHtml(profileSelectionLabel('role') || 'Registered nurse')} · ${escapeHtml(state.workPattern)}</small></span><button class="profile-edit-button" data-action="profile-detail" data-detail="personal-info">Edit</button></div>${accountSection}</div><p class="eyebrow section-label">PREFERENCES</p><div class="card settings-card"><h2>Preferences</h2><p class="fine">Shape your reminders and sleep plan.</p><div class="settings-divider"></div>${profileRow('bell', 'Notifications', state.notifications.Notifications ? 'On' : 'Off', 'notifications')}${profileRow('clock', 'Shift reminders', state.reminderTiming, 'reminders')}${profileRow('moon', 'Sleep preferences', state.sleepPreference, 'sleep-preferences')}</div><div class="card settings-card privacy-card"><h2>Privacy</h2><p class="fine">Your wellbeing information belongs to you.</p><div class="settings-divider"></div>${profileRow('heart', 'Personal Data', 'Private', 'data')}${profileRow('moon', 'Hospital data sharing', state.hospitalSharing ? 'On' : 'Off', 'sharing')}</div><p class="tiny-label footer-brand">CIRCADIA · A PERSONAL GUIDE TO SHIFT WORK</p>`;
+}
+
+function profileSelectionValues(field) {
+  const value = state.profileInfo[field];
+  return Array.isArray(value) ? value : value ? [value] : [];
+}
+
+function profileSelectionLabel(field) {
+  return profileSelectionValues(field).map((value) => value === 'Other' ? state.profileInfo[`${field}Other`] : value).filter(Boolean).join(', ');
+}
+
+function profileMultiSelect(label, field, options) {
+  const selected = profileSelectionValues(field);
+  const otherInput = selected.includes('Other')
+    ? `<label class="field-label profile-other-field">OTHER ${label.replace(' · OPTIONAL', '')}<input class="field" type="text" value="${escapeHtml(state.profileInfo[`${field}Other`] || '')}" data-profile-other="${field}" placeholder="Enter your ${label.toLowerCase().replace(' · optional', '')}"></label>`
+    : '';
+  return `<div class="profile-multi-group"><p class="field-label">${label}</p><p class="profile-select-help">Choose all that apply</p><div class="profile-multi-options">${options.map((option) => `<button type="button" class="profile-option-chip ${selected.includes(option) ? 'selected' : ''}" data-profile-option="${escapeHtml(option)}" data-profile-field="${field}" aria-pressed="${selected.includes(option)}">${escapeHtml(option)}${selected.includes(option) ? icon('check', 14) : ''}</button>`).join('')}</div>${otherInput}</div>`;
+}
+
+function personalInfoPage() {
+  const info = state.profileInfo;
+  const photo = state.profilePhoto ? `<img class="profile-photo-large" src="${state.profilePhoto}" alt="Current profile photo">` : `<span class="avatar profile-photo-placeholder">${escapeHtml((state.userName || 'J')[0])}</span>`;
+  return `<button class="btn ghost detail-back" data-action="profile-back">${icon('arrowLeft', 16)} Profile</button><p class="eyebrow">YOUR DETAILS</p><h1>Personal information</h1><p class="subhead">Add details that make your shift support feel more personal.</p><div class="card detail-card photo-editor"><div class="photo-preview">${photo}</div><div class="photo-actions"><strong>Profile photo</strong><small>Optional · stored in this prototype only</small><button class="detail-action" data-action="choose-photo">Add or change photo</button>${state.profilePhoto ? '<button class="detail-action danger" data-action="remove-photo">Remove photo</button>' : ''}</div><input class="visually-hidden" id="profile-photo-input" type="file" accept="image/*"></div><div class="card detail-card personal-fields"><label class="field-label">FULL NAME<input class="field" type="text" value="${escapeHtml(state.userName)}" data-profile-field="userName" autocomplete="name"></label><label class="field-label">DATE OF BIRTH · OPTIONAL<input class="field" type="date" value="${escapeHtml(info.birthDate)}" data-profile-field="birthDate"></label>${profileMultiSelect('HOSPITAL OR CLINIC · OPTIONAL', 'workplace', ['Hospital', 'Clinic', 'Long-term care', 'Home health', 'Other'])}${profileMultiSelect('UNIT OR DEPARTMENT · OPTIONAL', 'department', ['Emergency', 'Intensive care (ICU)', 'Medical-surgical', 'Pediatrics', 'Maternity', 'Oncology', 'Operating room', 'Other'])}${profileMultiSelect('ROLE · OPTIONAL', 'role', ['Registered nurse', 'Nurse practitioner', 'Licensed practical nurse', 'Clinical nurse specialist', 'Nurse manager', 'Other'])}<label class="field-label">REGISTRATION / LICENSE NUMBER · OPTIONAL<input class="field" type="text" value="${escapeHtml(info.license)}" data-profile-field="license" autocomplete="off"></label>${profileMultiSelect('SPECIALTY · OPTIONAL', 'specialty', ['Emergency', 'Critical care', 'Pediatrics', 'Oncology', 'Maternity', 'Geriatrics', 'Community health', 'Other'])}<div class="settings-divider"></div><p class="eyebrow">SHIFT PATTERN</p><p class="fine pattern-explainer">Change your day, night, or rotating shift pattern whenever your work changes.</p>${['Rotating shifts', 'Day shifts', 'Night shifts'].map((pattern) => `<button class="detail-choice ${state.workPattern === pattern ? 'selected' : ''}" data-profile-pattern="${pattern}"><span>${pattern}</span><span class="radio ${state.workPattern === pattern ? 'checked' : ''}"></span></button>`).join('')}<button class="btn save-profile-button" data-action="save-personal-info">Save details <span>${icon('check', 16)}</span></button></div><div class="card privacy-note-card">${icon('info', 17)} Personal and work details are optional. Sensitive numbers are kept private in this prototype.</div>`;
+}
+
+function wellbeingToolPage() {
+  const details = {
+    light: { category: 'LIGHT', title: 'Plan your light exposure', intro: 'Choose a gentle light habit to support your shift routine.', options: ['Daylight before shift', 'Bright light during first half', 'Dim light on commute home'] },
+    caffeine: { category: 'CAFFEINE', title: 'Check in on caffeine', intro: 'Choose a caffeine cut-off that works for your sleep window.', options: ['Stop by 12:00', 'Stop by 14:00', 'Stop by 16:00', 'No caffeine cut-off'] },
+    nap: { category: 'NAP', title: 'Make room for a nap', intro: 'Pick a nap length to include in your recovery plan.', options: ['20 minutes', '30 minutes', '90 minutes'] },
+  }[state.selectedWellbeingTool] || { category: 'LIGHT', title: 'Plan your light exposure', intro: 'Choose a gentle light habit to support your shift routine.', options: ['Daylight before shift', 'Bright light during first half', 'Dim light on commute home'] };
+  const toolKey = state.selectedWellbeingTool;
+  return `<button class="btn ghost detail-back" data-action="tool-back">${icon('arrowLeft', 16)} Today</button><p class="eyebrow">${details.category} · AROUND YOUR SHIFT</p><h1>${details.title}</h1><p class="subhead">${details.intro}</p><div class="card detail-card tool-options">${details.options.map((option) => `<button class="detail-choice ${state.wellbeingPreferences[toolKey] === option ? 'selected' : ''}" data-tool-choice="${escapeHtml(option)}"><span>${escapeHtml(option)}</span><span class="radio ${state.wellbeingPreferences[toolKey] === option ? 'checked' : ''}"></span></button>`).join('')}</div><div class="card callout-blue tool-note">${icon('info', 17)} Your plan is personal and can be changed any time.</div><button class="btn tool-save" data-action="save-wellbeing-tool">Save to my plan <span>${icon('check', 16)}</span></button>`;
 }
 
 function authScreen() {
@@ -257,12 +371,12 @@ function authScreen() {
   const intro = state.authView === 'create' ? 'Save your name and personal shift plan.' : state.authView === 'login' ? 'Log in to continue with your Circadia profile.' : state.authView === 'forgot' ? 'Enter your email and we’ll prepare a reset link.' : state.authView === 'reset-sent' ? `If an account exists for ${escapeHtml(state.authEmail)}, a password reset link is on its way.` : 'Your local prototype session has ended.';
   const back = `<button class="btn ghost detail-back" data-action="auth-back">${icon('arrowLeft', 16)} ${state.authReturnPage === 'Profile' ? 'Profile' : 'Back'}</button>`;
   let form = '';
-  if (state.authView === 'create') form = `<label class="field-label">YOUR NAME<input class="field" type="text" autocomplete="name" placeholder="Jamie Morgan" value="${escapeHtml(state.authName || state.userName)}" data-auth-field="name" required></label><label class="field-label">EMAIL ADDRESS<input class="field" type="email" autocomplete="email" placeholder="you@example.com" value="${escapeHtml(state.authEmail)}" data-auth-field="email" required></label><label class="field-label">PASSWORD<input class="field" type="password" autocomplete="new-password" placeholder="At least 8 characters" data-auth-field="password" required></label><button class="btn" data-action="auth-submit-create">Create account <span>${icon('arrow', 16)}</span></button><p class="auth-demo-note">Prototype only: this demo does not create a real online account.</p><p class="auth-switch">Already have an account? <button data-action="auth-login">Log in</button></p>`;
+  if (state.authView === 'create') form = `<label class="field-label">FULL NAME<input class="field" type="text" autocomplete="name" placeholder="Jamie Morgan" value="${escapeHtml(state.authName || state.userName)}" data-auth-field="name" required></label><label class="field-label">EMAIL ADDRESS<input class="field" type="email" autocomplete="email" placeholder="you@example.com" value="${escapeHtml(state.authEmail)}" data-auth-field="email" required></label><label class="field-label">PASSWORD<input class="field" type="password" autocomplete="new-password" placeholder="At least 8 characters" data-auth-field="password" required></label><button class="btn" data-action="auth-submit-create">Create account <span>${icon('arrow', 16)}</span></button><p class="auth-demo-note">Prototype only: this demo does not create a real online account.</p><p class="auth-switch">Already have an account? <button data-action="auth-login">Log in</button></p>`;
   if (state.authView === 'login') form = `<label class="field-label">EMAIL ADDRESS<input class="field" type="email" autocomplete="email" placeholder="you@example.com" value="${escapeHtml(state.authEmail)}" data-auth-field="email" required></label><label class="field-label">PASSWORD<input class="field" type="password" autocomplete="current-password" placeholder="Your password" data-auth-field="password" required></label><button class="auth-forgot" data-action="auth-forgot">Forgot password?</button><button class="btn" data-action="auth-submit-login">Log in <span>${icon('arrow', 16)}</span></button><p class="auth-demo-note">Demo sign-in accepts any valid email and non-empty password.</p><p class="auth-switch">New to Circadia? <button data-action="auth-create">Create an account</button></p>`;
   if (state.authView === 'forgot') form = `<label class="field-label">EMAIL ADDRESS<input class="field" type="email" autocomplete="email" placeholder="you@example.com" value="${escapeHtml(state.authEmail)}" data-auth-field="email" required></label><button class="btn" data-action="auth-submit-reset">Send reset link <span>${icon('arrow', 16)}</span></button><p class="auth-demo-note">Password reset is a visual prototype flow; no email is sent.</p><p class="auth-switch"><button data-action="auth-login">Return to log in</button></p>`;
   if (state.authView === 'reset-sent') form = `<div class="card auth-success">${icon('check', 24)}<p>Reset instructions are shown in this prototype. You can return to log in.</p></div><button class="btn" data-action="auth-login">Return to log in</button>`;
   if (state.authView === 'signedout') form = `<button class="btn" data-action="auth-login">Log in</button><button class="btn secondary" data-action="auth-create">Create an account</button><button class="btn ghost" data-action="continue-guest">Continue without an account</button>`;
-  return `<div class="auth-page">${back}<div class="auth-brand">${icon('cycle', 27)}<strong>circadia</strong></div><p class="eyebrow">YOUR ROUTINE, YOUR WAY</p><h1>${title}</h1><p class="subhead">${intro}</p>${form}</div>`;
+  return `<div class="auth-page">${back}<div class="auth-brand"><img src="assets/circadia-wordmark.png" alt="circadia"></div><p class="eyebrow">YOUR ROUTINE, YOUR WAY</p><h1>${title}</h1><p class="subhead">${intro}</p>${form}</div>`;
 }
 
 function profileRow(iconName, name, value, action) {
@@ -286,12 +400,15 @@ function modal() {
 function pageContent() {
   if (state.page === 'onboarding') return onboarding();
   if (state.page === 'Auth') return authScreen();
+  if (state.page === 'GuestPreview' || (state.guestPreview && !state.signedIn)) return guestPreview();
   if (state.page === 'BuildingPlan') return loadingScreen();
   if (state.page === 'Today') return today();
   if (state.page === 'Schedule') return schedule();
   if (state.page === 'Recovery') return recovery();
   if (state.page === 'ShiftEditor') return shiftEditorPage();
   if (state.page === 'ProfileDetail') return profileDetailPage();
+  if (state.page === 'PersonalInfo') return personalInfoPage();
+  if (state.page === 'WellbeingTool') return wellbeingToolPage();
   if (state.page === 'Notifications') return notificationCenter();
   return profile();
 }
@@ -300,19 +417,32 @@ function render() {
   const onboardingPage = state.page === 'onboarding';
   const loading = state.page === 'BuildingPlan';
   const auth = state.page === 'Auth';
-  root.innerHTML = `<div class="shell"><section class="app-frame" aria-label="Circadia shift-aware recovery prototype">${statusBar()}${onboardingPage || loading || auth ? '' : header()}<div class="screen ${onboardingPage ? 'onboarding' : ''} ${loading ? 'loading-screen' : ''} ${auth ? 'auth-screen' : ''}">${pageContent()}</div>${onboardingPage || loading || auth ? '' : nav()}<div class="toast" id="toast" role="status"></div>${modal()}</section></div>`;
+  root.innerHTML = `<div class="shell"><section class="app-frame" aria-label="Circadia shift-aware recovery prototype">${statusBar()}${onboardingPage || loading || auth ? '' : header()}<div class="screen ${onboardingPage ? 'onboarding' : ''} ${loading ? 'loading-screen' : ''} ${auth ? 'auth-screen' : ''}">${pageContent()}</div>${onboardingPage || loading || auth ? '' : nav()}${state.notificationOpen ? notificationCenter() : ''}<div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-mark">${icon('info', 16)}</span><span class="toast-message"></span><button class="toast-dismiss" data-action="dismiss-toast" aria-label="Dismiss message">×</button></div>${modal()}</section></div>`;
+  requestAnimationFrame(() => {
+    const screen = root.querySelector('.screen');
+    if (screen) screen.scrollTop = state.scrollPositions[state.page] || 0;
+  });
 }
 
 function toast(message) {
   const element = document.querySelector('#toast');
   if (!element) return;
-  element.textContent = message;
+  const text = element.querySelector('.toast-message');
+  if (text) text.textContent = message;
+  const success = /saved|added|enabled|complete|deleted|logged|downloaded|updated|cleared|paused|sent/i.test(message);
+  const mark = element.querySelector('.toast-mark');
+  if (mark) mark.innerHTML = icon(success ? 'check' : 'info', 16);
+  element.classList.toggle('is-success', success);
   element.classList.add('show');
   clearTimeout(state.toastTimer);
-  state.toastTimer = setTimeout(() => element.classList.remove('show'), 2200);
+  state.toastTimer = setTimeout(() => element.classList.remove('show'), 3200);
 }
 
 function finishOnboarding() {
+  state.guestPreview = false;
+  state.onboardingComplete = true;
+  safeStorageWrite('circadia-onboarding-complete', 'true');
+  safeStorageRemove('circadia-onboarding-skipped');
   state.tab = 'Today';
   state.page = 'BuildingPlan';
   render();
@@ -331,7 +461,7 @@ function addShift() {
     return;
   }
   const occupied = state.shifts.find((item) => item.isoDate === value && item.isoDate !== state.shiftEditing);
-  if (occupied) {
+  if (occupied && !['Off', 'Sick'].includes(occupied.type)) {
     toast('There is already a shift on that date. Edit it or choose another day.');
     return;
   }
@@ -346,6 +476,7 @@ function addShift() {
   state.shifts = state.shifts.filter((item) => item.isoDate !== state.shiftEditing && item.isoDate !== value);
   state.shifts.push(record);
   state.shifts.sort((a, b) => a.isoDate.localeCompare(b.isoDate));
+  safeStorageWrite('circadia-shifts', JSON.stringify(state.shifts));
   state.selectedDate = value;
   state.shiftDate = value;
   state.scheduleChanged = true;
@@ -357,7 +488,7 @@ function addShift() {
   state.tab = returnPage === 'Today' ? 'Today' : 'Schedule';
   state.shiftEditing = '';
   render();
-  toast(existing ? 'Shift updated' : 'Shift added to your roster');
+  toast(existing ? (normalizedType === 'Off' ? 'Day off updated' : 'Shift updated') : (normalizedType === 'Off' ? 'Day off added to your roster' : 'Shift added to your roster'));
 }
 
 root.addEventListener('input', (event) => {
@@ -373,6 +504,9 @@ root.addEventListener('input', (event) => {
   if (event.target.matches('[data-auth-field="name"]')) state.authName = event.target.value;
   if (event.target.matches('[data-auth-field="email"]')) state.authEmail = event.target.value;
   if (event.target.matches('[data-auth-field="password"]')) state.authPassword = event.target.value;
+  if (event.target.matches('[data-profile-field="userName"]')) state.userName = event.target.value;
+  if (event.target.matches('[data-profile-field]:not([data-profile-field="userName"]):not([data-profile-option])')) state.profileInfo[event.target.dataset.profileField] = event.target.value;
+  if (event.target.matches('[data-profile-other]')) state.profileInfo[`${event.target.dataset.profileOther}Other`] = event.target.value;
   if (event.target.id === 'shift-start' || event.target.id === 'shift-end') {
     const start = root.querySelector('#shift-start')?.value;
     const end = root.querySelector('#shift-end')?.value;
@@ -381,15 +515,85 @@ root.addEventListener('input', (event) => {
   }
 });
 
+root.addEventListener('pointerdown', (event) => {
+  const card = event.target.closest?.('.notification-card, .schedule-row');
+  const kind = card?.matches('.notification-card') ? 'notification' : card?.matches('.schedule-row') ? 'shift' : '';
+  if (!card || (kind === 'notification' && !state.notificationOpen) || (kind === 'shift' && (state.page !== 'Schedule' || state.scheduleView !== 'Week')) || (event.pointerType === 'mouse' && event.button !== 0)) return;
+  notificationSwipe = { card, kind, id: kind === 'notification' ? card.dataset.notificationId : card.dataset.date, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, dx: 0, horizontal: false, cancelled: false };
+  try { card.setPointerCapture(event.pointerId); } catch { /* pointer capture may be unavailable in a preview */ }
+});
+
+root.addEventListener('pointermove', (event) => {
+  const gesture = notificationSwipe;
+  if (!gesture || gesture.pointerId !== event.pointerId) return;
+  const dx = event.clientX - gesture.startX;
+  const dy = event.clientY - gesture.startY;
+  if (!gesture.horizontal && !gesture.cancelled && Math.max(Math.abs(dx), Math.abs(dy)) > 10) {
+    if (Math.abs(dx) > Math.abs(dy) * 1.2) gesture.horizontal = true;
+    else gesture.cancelled = true;
+  }
+  if (!gesture.horizontal || gesture.cancelled) return;
+  event.preventDefault();
+  gesture.dx = Math.max(-132, Math.min(132, dx));
+  const wrap = gesture.card.parentElement;
+  wrap?.classList.toggle('swiping-right', gesture.dx > 0);
+  wrap?.classList.toggle('swiping-left', gesture.dx < 0);
+  gesture.card.style.transform = `translateX(${gesture.dx}px)`;
+});
+
+function finishNotificationSwipe(event, cancelled = false) {
+  const gesture = notificationSwipe;
+  if (!gesture || gesture.pointerId !== event.pointerId) return;
+  notificationSwipe = null;
+  if (gesture.horizontal) {
+    suppressNotificationClick = true;
+    setTimeout(() => { suppressNotificationClick = false; }, 0);
+  }
+  if (!cancelled && gesture.horizontal && !gesture.cancelled && Math.abs(gesture.dx) >= 82 && (gesture.dx < 0 || gesture.kind === 'notification')) {
+    if (gesture.kind === 'notification' && gesture.dx > 0) {
+      const item = state.notificationItems.find((notification) => notification.id === gesture.id);
+      if (item) item.read = true;
+      render();
+    } else if (gesture.kind === 'notification') {
+      state.notificationItems = state.notificationItems.filter((notification) => notification.id !== gesture.id);
+      render();
+    } else {
+      state.shifts = state.shifts.filter((shift) => shift.isoDate !== gesture.id);
+      safeStorageWrite('circadia-shifts', JSON.stringify(state.shifts));
+      state.scheduleChanged = true;
+      render();
+      toast('Shift deleted');
+    }
+    return;
+  }
+  gesture.card.style.transform = '';
+  gesture.card.parentElement?.classList.remove('swiping-right', 'swiping-left');
+}
+
+root.addEventListener('pointerup', (event) => finishNotificationSwipe(event));
+root.addEventListener('pointercancel', (event) => finishNotificationSwipe(event, true));
+
+root.addEventListener('keydown', (event) => {
+  const card = event.target.closest?.('.steps-card[role="button"]');
+  if (!card || !['Enter', ' '].includes(event.key)) return;
+  event.preventDefault();
+  card.click();
+});
+
 root.addEventListener('click', (event) => {
   const target = event.target.closest('button, [data-action]');
   if (!target) return;
+  if (suppressNotificationClick && target.matches('.notification-card, .schedule-row')) { event.preventDefault(); event.stopPropagation(); suppressNotificationClick = false; return; }
+  const currentScreen = root.querySelector('.screen');
+  if (currentScreen) state.scrollPositions[state.page] = currentScreen.scrollTop;
+  if (target.dataset.action === 'home') { state.tab = 'Today'; state.page = state.guestPreview && !state.signedIn ? 'GuestPreview' : 'Today'; render(); return; }
   if (target.dataset.page) {
-    state.page = target.dataset.page; state.tab = target.dataset.page; render(); return;
+    state.tab = target.dataset.page; state.page = state.guestPreview && !state.signedIn ? 'GuestPreview' : target.dataset.page; render(); return;
   }
   if (target.dataset.selectPattern) { state.workPattern = target.dataset.selectPattern; render(); return; }
   if (target.dataset.selectMethod) { state.rosterMethod = target.dataset.selectMethod; render(); return; }
   if (target.dataset.view) { state.scheduleView = target.dataset.view; render(); return; }
+  if (target.dataset.toolChoice) { state.wellbeingPreferences[state.selectedWellbeingTool] = target.dataset.toolChoice; render(); return; }
   if (target.dataset.mood) {
     const currentScroll = root.querySelector('.screen')?.scrollTop ?? 0;
     state.mood = target.dataset.mood;
@@ -400,6 +604,7 @@ root.addEventListener('click', (event) => {
     return;
   }
   if (target.dataset.sleepSource) { state.sleepSource = target.dataset.sleepSource; render(); return; }
+  if (target.dataset.cycleFlow) { state.cycleDraftFlow = target.dataset.cycleFlow; render(); return; }
   if (target.hasAttribute('data-toggle-cycle')) { state.cycle = !state.cycle; render(); toast(state.cycle ? 'Cycle tracking enabled' : 'Cycle tracking paused'); return; }
   if (target.dataset.togglePref) {
     if (target.dataset.togglePref === 'Weekly recovery summary') state.weeklySummary = !state.weeklySummary;
@@ -415,8 +620,9 @@ root.addEventListener('click', (event) => {
   if (target.dataset.reminderTiming) { state.reminderTiming = target.dataset.reminderTiming; render(); return; }
   if (target.dataset.sleepPreference) { state.sleepPreference = target.dataset.sleepPreference; render(); return; }
   const action = target.dataset.action;
+  if (action === 'dismiss-toast') { const notice = root.querySelector('#toast'); notice?.classList.remove('show'); clearTimeout(state.toastTimer); return; }
   if (action === 'auth-create' || action === 'auth-login') {
-    if (state.page !== 'Auth') state.authReturnPage = state.page === 'Profile' ? 'Profile' : state.page === 'onboarding' ? 'onboarding' : 'Today';
+    if (state.page !== 'Auth') state.authReturnPage = state.page === 'Profile' ? 'Profile' : state.page === 'onboarding' ? 'onboarding' : state.page === 'GuestPreview' ? 'GuestPreview' : 'Today';
     state.authView = action === 'auth-create' ? 'create' : 'login';
     state.authNotice = '';
     state.page = 'Auth'; render(); return;
@@ -430,7 +636,13 @@ root.addEventListener('click', (event) => {
       toast('Add your name, a valid email, and a password with at least 8 characters'); return;
     }
     state.userName = name; state.authName = name; state.accountEmail = email; state.signedIn = true;
-    state.page = state.authReturnPage === 'onboarding' ? 'onboarding' : state.authReturnPage;
+    if (state.authReturnPage !== 'onboarding') {
+      state.onboardingComplete = true;
+      safeStorageWrite('circadia-onboarding-complete', 'true');
+      safeStorageRemove('circadia-onboarding-skipped');
+    }
+    state.page = state.authReturnPage === 'onboarding' ? 'onboarding' : state.authReturnPage === 'GuestPreview' ? state.tab : state.authReturnPage;
+    state.guestPreview = false;
     state.step = state.page === 'onboarding' ? 0 : state.step;
     render(); toast('Demo account created on this device'); return;
   }
@@ -438,21 +650,58 @@ root.addEventListener('click', (event) => {
     const email = state.authEmail.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !state.authPassword) { toast('Enter a valid email and password'); return; }
     state.accountEmail = email; state.signedIn = true;
-    state.page = state.authReturnPage === 'Profile' ? 'Profile' : 'Today'; state.tab = state.page;
+    state.onboardingComplete = true;
+    safeStorageWrite('circadia-onboarding-complete', 'true');
+    safeStorageRemove('circadia-onboarding-skipped');
+    state.page = state.authReturnPage === 'Profile' ? 'Profile' : state.authReturnPage === 'GuestPreview' ? state.tab : 'Today'; state.tab = state.page;
+    state.guestPreview = false;
     render(); toast('Demo sign-in complete'); return;
   }
   if (action === 'auth-submit-reset') {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.authEmail.trim())) { toast('Enter a valid email address'); return; }
     state.authView = 'reset-sent'; render(); return;
   }
-  if (action === 'sign-out') { state.signedIn = false; state.authReturnPage = 'Profile'; state.authView = 'signedout'; state.page = 'Auth'; render(); return; }
-  if (action === 'continue-guest') { state.page = state.authReturnPage === 'Profile' ? 'Profile' : 'Today'; state.tab = state.page; render(); return; }
-  if (action === 'notifications') { state.page = 'Notifications'; render(); return; }
+  if (action === 'sign-out') { state.signedIn = false; state.guestPreview = true; state.authReturnPage = 'GuestPreview'; state.authView = 'signedout'; state.page = 'Auth'; render(); return; }
+  if (action === 'continue-guest') { state.guestPreview = true; state.page = 'GuestPreview'; render(); return; }
+  if (action === 'skip-onboarding') { state.guestPreview = true; state.page = 'GuestPreview'; state.tab = 'Today'; safeStorageWrite('circadia-onboarding-skipped', 'true'); render(); return; }
+  if (action === 'return-onboarding') { state.guestPreview = false; state.page = 'onboarding'; state.step = 0; safeStorageRemove('circadia-onboarding-skipped'); render(); return; }
+  if (action === 'choose-photo') { root.querySelector('#profile-photo-input')?.click(); return; }
+  if (action === 'remove-photo') { state.profilePhoto = ''; render(); return; }
+  if (action === 'save-personal-info') { state.page = 'Profile'; state.tab = 'Profile'; render(); toast('Profile details saved on this device'); return; }
+  if (action === 'wellbeing-tool') { state.selectedWellbeingTool = target.dataset.tool || 'light'; state.toolReturnPage = state.page; state.page = 'WellbeingTool'; render(); return; }
+  if (action === 'tool-back') { state.page = state.toolReturnPage || 'Today'; render(); return; }
+  if (action === 'save-wellbeing-tool') { state.page = state.toolReturnPage || 'Today'; state.tab = 'Today'; render(); toast('Added to your recovery plan'); return; }
+  if (target.dataset.profileOption) {
+    const field = target.dataset.profileField;
+    const values = profileSelectionValues(field);
+    state.profileInfo[field] = values.includes(target.dataset.profileOption)
+      ? values.filter((value) => value !== target.dataset.profileOption)
+      : [...values, target.dataset.profileOption];
+    state.scrollPositions[state.page] = root.querySelector('.screen')?.scrollTop || 0;
+    render(); return;
+  }
+  if (target.dataset.profilePattern) { state.workPattern = target.dataset.profilePattern; render(); return; }
+  if (action === 'notifications') { state.notificationOpen = true; render(); return; }
+  if (action === 'close-notifications') { state.notificationOpen = false; render(); return; }
   if (action === 'profile') { state.page = 'Profile'; state.tab = 'Profile'; render(); return; }
-  if (action === 'profile-detail') { state.profileDetail = target.dataset.detail; state.page = 'ProfileDetail'; state.tab = 'Profile'; render(); return; }
+  if (action === 'profile-detail') {
+    state.profileDetail = target.dataset.detail;
+    state.page = target.dataset.detail === 'personal-info' ? 'PersonalInfo' : 'ProfileDetail';
+    state.tab = 'Profile'; render(); return;
+  }
   if (action === 'profile-back') { state.page = 'Profile'; state.tab = 'Profile'; render(); return; }
   if (action === 'toggle-sharing') { state.hospitalSharing = !state.hospitalSharing; render(); return; }
-  if (action === 'mark-read') { state.readNotifications = true; render(); return; }
+  if (action === 'mark-read') { state.notificationItems = state.notificationItems.map((item) => ({ ...item, read: true })); state.readNotifications = true; render(); return; }
+  if (action === 'delete-all-notifications') { state.notificationItems = []; state.notificationOpen = true; render(); return; }
+  if (action === 'open-notification') {
+    const item = state.notificationItems.find((notification) => notification.id === target.dataset.notificationId);
+    if (item) {
+      item.read = true;
+      state.page = item.page;
+      state.tab = item.page;
+    }
+    state.notificationOpen = false; render(); return;
+  }
   if (action === 'export-data') {
     const data = { sleepHours: state.sleep, latestMood: state.mood, shifts: state.shifts, exportedAt: new Date().toISOString() };
     const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })); link.download = 'circadia-personal-data.json'; link.click(); URL.revokeObjectURL(link.href);
@@ -478,6 +727,7 @@ root.addEventListener('click', (event) => {
   }
   if (action === 'delete-shift') {
     state.shifts = state.shifts.filter((shift) => shift.isoDate !== target.dataset.date);
+    safeStorageWrite('circadia-shifts', JSON.stringify(state.shifts));
     state.scheduleChanged = true;
     state.selectedDate = target.dataset.date;
     state.page = state.shiftReturnPage === 'onboarding' ? 'onboarding' : state.shiftReturnPage;
@@ -501,7 +751,11 @@ root.addEventListener('click', (event) => {
     const candidate = state.scheduleView === 'Month'
       ? (state.selectedDate?.startsWith(state.monthCursor.slice(0, 7)) ? state.selectedDate : `${state.monthCursor.slice(0, 7)}-01`)
       : (state.selectedDate >= state.weekStart && state.selectedDate <= isoFromDate((() => { const end = dateFromISO(state.weekStart); end.setDate(end.getDate() + 6); return end; })()) ? state.selectedDate : state.weekStart);
-    const start = nextFreeDate(candidate);
+    const weekEnd = dateFromISO(state.weekStart); weekEnd.setDate(weekEnd.getDate() + 6);
+    const inWeek = state.shifts.filter((shift) => shift.isoDate >= state.weekStart && shift.isoDate <= isoFromDate(weekEnd));
+    const selectedRest = inWeek.find((shift) => shift.isoDate === candidate && ['Off', 'Sick'].includes(shift.type));
+    const availableRest = inWeek.find((shift) => ['Off', 'Sick'].includes(shift.type));
+    const start = state.scheduleView === 'Week' ? (selectedRest?.isoDate || availableRest?.isoDate || nextFreeDate(candidate)) : nextFreeDate(candidate);
     openShiftEditor(start, 'Schedule', true); return;
   }
   if (action === 'cycle-hours') {
@@ -519,16 +773,42 @@ root.addEventListener('click', (event) => {
     return;
   }
   if (action === 'save-shift') { addShift(); return; }
-  if (action === 'save-sleep') { toast(`${state.sleep.toFixed(1)} hours saved`); return; }
-  if (action === 'log-day') { toast('Today’s note is ready to add'); return; }
+  if (action === 'save-sleep') {
+    const entry = { date: todayISO(), hours: Number(state.sleep), source: state.sleepSource };
+    state.sleepEntries = [...state.sleepEntries.filter((item) => item.date !== entry.date), entry].sort((a, b) => a.date.localeCompare(b.date));
+    safeStorageWrite('circadia-sleep-checkins', JSON.stringify(state.sleepEntries));
+    render(); toast('Sleep check-in saved'); return;
+  }
+  if (action === 'log-day') { state.showCycleForm = true; state.cycleDraftDate = todayISO(); state.cycleDraftFlow = 'medium'; state.cycleDraftDays = 3; render(); return; }
+  if (action === 'cancel-period') { state.showCycleForm = false; render(); return; }
+  if (action === 'save-period') {
+    const date = root.querySelector('#cycle-start-date')?.value || state.cycleDraftDate;
+    const usualDays = Number(root.querySelector('#cycle-usual-days')?.value || state.cycleDraftDays);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > todayISO()) { toast('Choose a valid period start date'); return; }
+    const entry = { date, flow: state.cycleDraftFlow, usualDays, loggedAt: new Date().toISOString() };
+    state.periodStarts = [...state.periodStarts.filter((item) => item.date !== date), entry].sort((a, b) => a.date.localeCompare(b.date));
+    safeStorageWrite('circadia-period-starts', JSON.stringify(state.periodStarts));
+    state.showCycleForm = false; render(); toast('Period start saved'); return;
+  }
   if (action === 'edit-profile') { toast('Profile editing is part of this prototype'); return; }
-  if (action === 'restart') { state.page = 'onboarding'; state.step = 0; render(); return; }
+  if (action === 'restart') {
+    if (state.onboardingComplete) { toast('Onboarding is already complete'); return; }
+    state.page = 'onboarding'; state.step = 0; render(); return;
+  }
 });
 
 root.addEventListener('change', (event) => {
   if (event.target.matches('[data-sleep-goal]')) state.sleepGoal = event.target.value;
+  if (event.target.id === 'profile-photo-input' && event.target.files?.[0]) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.profilePhoto = String(reader.result || '');
+      state.scrollPositions[state.page] = root.querySelector('.screen')?.scrollTop || 0;
+      render();
+    };
+    reader.readAsDataURL(event.target.files[0]);
+  }
 });
 
 render();
-
 
