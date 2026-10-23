@@ -1,6 +1,7 @@
 const root = document.querySelector('#app');
 
 const days = [
+  { short: 'SUN', date: '11', title: 'Day shift', time: '07:00 – 19:00', type: 'Day Shift', hours: 12 },
   { short: 'MON', date: '12', title: 'Day shift', time: '07:00 – 19:00', type: 'Day Shift', hours: 12 },
   { short: 'TUE', date: '13', title: 'Day shift', time: '07:00 – 19:00', type: 'Day Shift', hours: 12 },
   { short: 'WED', date: '14', title: 'Night shift', time: '19:00 – 07:00', type: 'Night Shift', hours: 12 },
@@ -9,13 +10,19 @@ const days = [
   { short: 'SAT', date: '17', title: 'Day off', time: 'Recovery day', type: 'Off', hours: 0 },
   { short: 'SUN', date: '18', title: 'Rest day', time: 'No shift planned', type: 'Off', hours: 0 },
 ];
+days.forEach((shift) => {
+  shift.isoDate = `2026-10-${shift.date}`;
+  shift.onboarding = Number(shift.date) >= 15;
+});
 
 const state = {
   page: 'onboarding', step: 0, workPattern: 'Rotating shifts', rosterMethod: 'Enter shifts manually',
-  tab: 'Today', scheduleView: 'Week', selectedDate: '15', month: 'October 2026',
+  tab: 'Today', scheduleView: 'Week', selectedDate: '2026-10-15', monthCursor: '2026-10-01', weekStart: '2026-10-12',
   mood: 'Sleepy', sleep: 6, sleepSource: 'Enter manually', cycle: true,
   notifications: { 'Notifications': true, 'Shift reminders': true, 'Sleep preferences': true },
-  shifts: [...days], showAddShift: false, pageBeforeAdd: 'Schedule', newShiftType: 'night', toastTimer: null,
+  shifts: [...days], profileDetail: '', profileReturnPage: 'Profile', shiftDate: '2026-10-15', shiftReturnPage: 'Schedule', shiftEditing: '',
+  newShiftType: 'night', reminderTiming: '1 hour before', hospitalSharing: false, readNotifications: false,
+  sleepPreference: 'After work', sleepGoal: '8 hours', weeklySummary: true, scheduleChanged: false, toastTimer: null, loadingTimer: null,
 };
 
 const symbols = { Today: 'sun', Schedule: 'calendar', Recovery: 'heart', Profile: 'user' };
@@ -47,6 +54,7 @@ const iconPaths = {
   arrow: '<path d="M4 12h15m-6-6 6 6-6 6"/>',
   arrowLeft: '<path d="M20 12H5m6 6-6-6 6-6"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
+  trash: '<path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/>',
 };
 function icon(name, size = 16) {
   return `<svg class="ui-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name] || iconPaths.circle}</svg>`;
@@ -57,7 +65,7 @@ function statusBar() {
 }
 
 function header() {
-  return `<header class="app-header"><div class="brand">circadia</div><button class="icon-button bell-button" data-action="profile" aria-label="Notifications">${icon('bell', 14)}</button></header>`;
+  return `<header class="app-header"><div class="brand">circadia</div><button class="icon-button bell-button" data-action="notifications" aria-label="Open notifications">${icon('bell', 14)}${state.readNotifications ? '' : '<i class="notification-dot"></i>'}</button></header>`;
 }
 
 function nav() {
@@ -82,17 +90,17 @@ function onboarding() {
     const methods = [['Connect your calendar', 'Automatically import your upcoming shifts.', 'calendarAdd'], ['Enter shifts manually', 'Add shifts yourself, one by one.', 'pencil'], ['Upload a schedule', 'Upload your photo, screenshot, PDF, spreadsheet or WhatsApp screenshot.', 'imageUpload']];
     return `${progress(2)}<p class="eyebrow">YOUR PLAN STARTS HERE</p><h1>Add your upcoming shifts.</h1><p class="subhead">Choose how you received your schedule.</p>${methods.map(([name, detail, iconName]) => `<button class="option ${state.rosterMethod === name ? 'selected' : ''}" data-select-method="${name}"><span class="option-copy"><span class="option-icon">${icon(iconName, 14)}</span><span><strong>${name}</strong><small>${detail}</small></span></span><span class="radio"></span></button>`).join('')}<p class="helper">You’ll review every shift before it appears in your plan.</p><button class="btn" data-action="next">Continue <span>${icon('arrow', 12)}</span></button><button class="btn ghost" data-action="back">← Back</button>`;
   }
-  return `${progress(3)}<p class="eyebrow">YOUR NEXT FEW SHIFTS</p><h1>Make it yours.</h1><p class="subhead">Choose a shift to cycle its type, or add another shift. You can update this later.</p><div class="roster-rows">${state.shifts.slice(3).map((shift, i) => shiftEditor(shift, i)).join('')}</div><button class="btn secondary roster-add" data-action="add-row">${icon('plus', 15)} Add another shift</button><div class="card total-card"><p class="eyebrow">ROSTER TOTAL</p><strong>${rosterHours()}h scheduled this week</strong></div><button class="btn" data-action="next">Build my plan <span>${icon('arrow', 17)}</span></button><button class="btn ghost" data-action="back">${icon('arrowLeft', 16)} Back</button>`;
+  return `${progress(3)}<p class="eyebrow">YOUR NEXT FEW SHIFTS</p><h1>Make it yours.</h1><p class="subhead">Choose a shift to review or edit it. You can update this later.</p><div class="roster-rows">${state.shifts.filter((shift) => shift.onboarding).map((shift, i) => shiftEditor(shift, i)).join('')}</div><button class="btn secondary roster-add" data-action="add-row">${icon('plus', 15)} Add another shift</button><div class="card total-card"><p class="eyebrow">ROSTER TOTAL</p><strong>${rosterHours()}h scheduled this week</strong></div><button class="btn" data-action="next">Build my plan <span>${icon('arrow', 17)}</span></button><button class="btn ghost" data-action="back">${icon('arrowLeft', 16)} Back</button>`;
 }
 
 function rosterHours() {
-  return state.shifts.slice(3).reduce((sum, shift) => sum + (shift.type === 'Off' || shift.type === 'Sick' ? 0 : Number(shift.hours ?? 12)), 0);
+  return state.shifts.filter((shift) => shift.onboarding).reduce((sum, shift) => sum + (shift.type === 'Off' || shift.type === 'Sick' ? 0 : Number(shift.hours ?? 12)), 0);
 }
 
 function shiftEditor(shift, i) {
   const isToday = shift.date === '15';
   const displayTitle = shift.type === 'Off' ? 'Day Off' : shift.type === 'Night Shift' ? 'Night Shift' : 'Day Shift';
-  return `<div class="shift-row editable-shift ${isToday ? 'roster-today' : ''}"><button class="roster-cycle" data-action="cycle-shift" aria-label="Change ${escapeHtml(shift.short)} ${escapeHtml(shift.date)} shift type"><span class="date-badge">${isToday ? '<em>TODAY</em>' : ''}<span>${escapeHtml(shift.short)}</span><strong>${escapeHtml(shift.date)}</strong></span><span class="roster-shift-name"><strong>${displayTitle}</strong><small>${shift.type === 'Off' ? '–' : escapeHtml(shift.time)}</small></span><span class="pill ${shift.type === 'Night Shift' ? 'dark' : shift.type === 'Off' ? 'off' : 'aqua'}">${shift.type === 'Off' ? 'DAY OFF' : shift.type === 'Night Shift' ? `${icon('moon', 14)} Night` : `${icon('sun', 14)} Day`}</span></button>${shift.type === 'Off' ? '' : `<button class="hours-button" data-action="cycle-hours" data-date="${shift.date}" aria-label="Change shift hours; currently ${shift.hours ?? 12} hours">${shift.hours ?? 12}h</button>`}</div>`;
+  return `<div class="shift-row editable-shift ${isToday ? 'roster-today' : ''}"><button class="roster-cycle" data-action="edit-shift" data-date="${shift.isoDate}" aria-label="Edit ${escapeHtml(shift.short)} ${escapeHtml(shift.date)} shift"><span class="date-badge">${isToday ? '<em>TODAY</em>' : ''}<span>${escapeHtml(shift.short)}</span><strong>${escapeHtml(shift.date)}</strong></span><span class="roster-shift-name"><strong>${displayTitle}</strong><small>${shift.type === 'Off' ? '–' : escapeHtml(shift.time)}</small></span><span class="pill ${shift.type === 'Night Shift' ? 'dark' : shift.type === 'Off' ? 'off' : 'aqua'}">${shift.type === 'Off' ? 'DAY OFF' : shift.type === 'Night Shift' ? `${icon('moon', 14)} Night` : `${icon('sun', 14)} Day`}</span></button>${shift.type === 'Off' || shift.type === 'Sick' ? '' : `<button class="hours-button" data-action="cycle-hours" data-date="${shift.isoDate}" aria-label="Change shift hours; currently ${shift.hours ?? 12} hours">${shift.hours ?? 12}h</button>`}</div>`;
 }
 
 function timeline() {
@@ -101,43 +109,130 @@ function timeline() {
 }
 
 function today() {
-  return `<p class="eyebrow">THURSDAY, OCTOBER 15</p><h1>Good afternoon, Jamie.</h1><p class="subhead">A little support for your next shift.</p><div class="card lime"><div class="card-title-row"><p class="eyebrow">NEXT SHIFT</p><span class="pill dark">${icon('moon', 9)} Night Shift</span></div><h2 class="shift-time">19:00 – 07:30</h2><p class="fine">Thu, Oct 15 · starts in 1h 04m</p></div><div class="card sleep-window"><div class="card-title-row"><p class="eyebrow">REST PLAN</p><span class="pill">After work</span></div><h2>Your sleep window</h2><p class="strong-time">09:00–15:30</p><span class="pill aqua">6h 30m</span><p class="fine sleep-copy">Plan time to rest after work and before your next commitment.</p></div>${timeline()}<div class="section-heading"><p class="eyebrow">AROUND YOUR SHIFT</p><h2>One useful next step</h2></div>${[['sun', 'LIGHT', 'Plan your light exposure', 'Think about the light you’ll have at work and on your commute.'], ['coffee', 'CAFFEINE', 'Check in on caffeine', 'Notice when you have caffeine and how it affects your rest later.'], ['bed', 'NAP', 'Make room for a nap', 'If you plan to nap, leave yourself time to wake before heading in.']].map(([iconName, label, title, detail]) => `<div class="card steps-card"><span class="step-icon">${icon(iconName, 14)}</span><div><p class="eyebrow">${label}</p><h3>${title}</h3><p>${detail}</p></div><span class="open-link">Open ${icon('arrow', 9)}</span></div>`).join('')}<div class="card mint recovery-card"><p class="eyebrow">RECOVERY</p><h3>Build your sleep picture</h3><p class="fine">Add a sleep check-in after your next rest. Your recent entries will appear here.</p><button class="link-button" data-page="Recovery">View recovery ${icon('arrow', 10)}</button></div>`;
+  const nextShift = state.shifts.find((shift) => shift.isoDate === '2026-10-15' && shift.type !== 'Off');
+  const nextType = nextShift?.type === 'Day Shift' ? 'Day' : 'Night';
+  return `<p class="eyebrow">THURSDAY, OCTOBER 15</p><h1>Good afternoon, Jamie.</h1><p class="subhead">A little support for your next shift.</p><div class="card lime today-next-shift" data-action="edit-shift" data-date="${nextShift?.isoDate || '2026-10-15'}"><div class="card-title-row"><p class="eyebrow">NEXT SHIFT · TAP TO EDIT</p><span class="pill dark">${icon(nextType === 'Night' ? 'moon' : 'sun', 16)} ${nextType} Shift</span></div><h2 class="shift-time">${nextShift?.time || '19:00 – 07:30'}</h2><p class="fine">Thu, Oct 15 · starts in 1h 04m</p></div><div class="card sleep-window"><div class="card-title-row"><p class="eyebrow">REST PLAN</p><span class="pill">After work</span></div><h2>Your sleep window</h2><p class="strong-time">09:00–15:30</p><span class="pill aqua">6h 30m</span><p class="fine sleep-copy">Plan time to rest after work and before your next commitment.</p></div>${timeline()}<div class="section-heading"><p class="eyebrow">AROUND YOUR SHIFT</p><h2>One useful next step</h2></div>${[['sun', 'LIGHT', 'Plan your light exposure', 'Think about the light you’ll have at work and on your commute.'], ['coffee', 'CAFFEINE', 'Check in on caffeine', 'Notice when you have caffeine and how it affects your rest later.'], ['bed', 'NAP', 'Make room for a nap', 'If you plan to nap, leave yourself time to wake before heading in.']].map(([iconName, label, title, detail]) => `<div class="card steps-card"><span class="step-icon">${icon(iconName, 14)}</span><div><p class="eyebrow">${label}</p><h3>${title}</h3><p>${detail}</p></div><span class="open-link">Open ${icon('arrow', 9)}</span></div>`).join('')}<div class="card mint recovery-card"><p class="eyebrow">RECOVERY</p><h3>Build your sleep picture</h3><p class="fine">Add a sleep check-in after your next rest. Your recent entries will appear here.</p><button class="link-button" data-page="Recovery">View recovery ${icon('arrow', 10)}</button></div>`;
 }
 
 function weekCalendar() {
-  return state.shifts.slice(0, 5).map((shift) => {
-    const selected = state.selectedDate === shift.date;
-    const isToday = shift.date === '15';
-    const past = Number(shift.date) < Number(state.selectedDate);
-    const type = shift.type === 'Night Shift' ? 'night' : shift.type === 'Day Shift' ? 'day' : shift.type === 'Sick' ? 'sick' : 'off';
-    const statusIcon = type === 'night' ? 'moon' : type === 'day' ? 'sun' : type === 'sick' ? 'heart' : 'circle';
-    const statusName = type === 'night' ? 'Night' : type === 'day' ? 'Day' : type === 'sick' ? 'Sick' : 'Off';
-    return `<button class="schedule-row ${selected ? 'selected' : ''}" data-select-day="${shift.date}"><span class="schedule-date">${isToday ? '<span class="today-mark">TODAY</span>' : ''}<span class="weekday ${past ? 'past-day' : ''}">${shift.short}</span><strong>${Number(shift.date)}</strong></span><span class="schedule-label"><strong>${shift.type === 'Off' ? 'Day Off' : shift.title}</strong><small>${shift.time.replaceAll(' – ', '–')}</small></span><span class="shift-kind ${type}">${icon(statusIcon, 14)} ${statusName}</span><span class="duration-pill">${shift.type === 'Off' ? '–' : `${shift.hours ?? 12}h`}</span></button>`;
+  const start = dateFromISO(state.weekStart);
+  const end = new Date(start); end.setDate(end.getDate() + 6);
+  const shifts = state.shifts.filter((shift) => shift.isoDate >= state.weekStart && shift.isoDate <= isoFromDate(end) && shift.type !== 'Off');
+  if (!shifts.length) return '<div class="empty-note">No shifts planned this week. Add a shift to get started.</div>';
+  return shifts.map((shift) => {
+    const selected = state.selectedDate === shift.isoDate;
+    const today = shift.isoDate === '2026-10-15';
+    const past = shift.isoDate < '2026-10-15';
+    const type = shift.type === 'Night Shift' ? 'night' : shift.type === 'Day Shift' ? 'day' : 'sick';
+    const statusIcon = type === 'night' ? 'moon' : type === 'day' ? 'sun' : 'heart';
+    const statusName = type === 'night' ? 'Night' : type === 'day' ? 'Day' : 'Sick';
+    return `<button class="schedule-row ${selected ? 'selected' : ''}" data-action="edit-shift" data-date="${shift.isoDate}"><span class="schedule-date">${today ? '<span class="today-mark">TODAY</span>' : ''}<span class="weekday ${past ? 'past-day' : ''}">${shift.short}</span><strong>${Number(shift.date)}</strong></span><span class="schedule-label"><strong>${shift.type === 'Sick' ? 'Sick day' : shift.title}</strong><small>${shift.time.replaceAll(' – ', '–')}</small></span><span class="shift-kind ${type}">${icon(statusIcon, 14)} ${statusName}</span><span class="duration-pill">${shift.hours ?? 12}h</span></button>`;
   }).join('');
 }
 
 function monthCalendar() {
-  const cells = Array.from({ length: 35 }, (_, index) => {
-    const firstWeekday = (new Date(2026, 9, 1).getDay() + 6) % 7;
+  const [year, month] = state.monthCursor.split('-').map(Number);
+  const monthIndex = month - 1;
+  const firstWeekday = (new Date(year, monthIndex, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const cellCount = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+  const cells = Array.from({ length: cellCount }, (_, index) => {
     const currentDate = index - firstWeekday + 1;
-    const outside = currentDate < 1 || currentDate > 31;
-    if (outside) return `<span class="calendar-blank">·</span>`;
-    const dateStr = String(currentDate).padStart(2, '0');
-    const shift = state.shifts.find((item) => item.date === dateStr) || (dateStr === '11' ? { type: 'Day Shift' } : null);
+    if (currentDate < 1 || currentDate > daysInMonth) return '<span class="calendar-blank">·</span>';
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(currentDate).padStart(2, '0')}`;
+    const shift = state.shifts.find((item) => item.isoDate === dateStr);
     const type = shift?.type === 'Day Shift' ? 'day' : shift?.type === 'Night Shift' ? 'night' : shift?.type === 'Sick' ? 'sick' : shift?.type === 'Off' ? 'off' : '';
     const marker = type ? `<span class="day-marker ${type}">${type === 'day' ? 'D' : type === 'night' ? 'N' : type === 'sick' ? 'S' : 'O'}</span>` : '';
-    return `<button class="day-cell ${state.selectedDate === dateStr ? 'selected' : ''}" data-select-day="${dateStr}"><span>${currentDate}</span>${marker}</button>`;
+    return `<button class="day-cell ${state.selectedDate === dateStr ? 'selected' : ''}" data-action="edit-date" data-date="${dateStr}" aria-label="${shift ? 'Edit' : 'Add'} shift on ${dateStr}"><span>${currentDate}</span>${marker}</button>`;
   }).join('');
   return `<div class="month-grid-card"><div class="weekdays">${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day) => `<span>${day}</span>`).join('')}</div><div class="days">${cells}</div><div class="legend"><span><i class="day">D</i>Day</span><span><i class="night">N</i>Night</span><span><i class="off">O</i>Off</span><span><i class="sick">S</i>Sick</span></div></div>`;
 }
 
 function schedule() {
-  const summary = state.scheduleView === 'Week'
-    ? `<div class="card schedule-summary"><p class="eyebrow">SCHEDULED THIS WEEK</p><strong>49h</strong><p>5 shifts · scheduled span; breaks not deducted.</p></div>`
-    : `<div class="card schedule-summary"><p class="eyebrow">SCHEDULED THIS MONTH</p><strong>104h</strong><p>6 shifts · scheduled span; breaks not deducted.</p></div>`;
-  const dateLabel = state.scheduleView === 'Week' ? 'OCT 12 – OCT 18, 2026' : 'OCTOBER 2026';
+  const weekEnd = new Date(dateFromISO(state.weekStart)); weekEnd.setDate(weekEnd.getDate() + 6);
+  const periodStart = state.scheduleView === 'Week' ? state.weekStart : state.monthCursor;
+  const periodEnd = state.scheduleView === 'Week' ? isoFromDate(weekEnd) : `${state.monthCursor.slice(0, 7)}-${String(new Date(Number(state.monthCursor.slice(0, 4)), Number(state.monthCursor.slice(5, 7)), 0).getDate()).padStart(2, '0')}`;
+  const periodShifts = state.shifts.filter((shift) => shift.isoDate >= periodStart && shift.isoDate <= periodEnd);
+  const workingShifts = periodShifts.filter((shift) => shift.type !== 'Off' && shift.type !== 'Sick');
+  const hours = periodShifts.reduce((total, shift) => total + (shift.type === 'Off' || shift.type === 'Sick' ? 0 : Number(shift.hours ?? 12)), 0);
+  const referenceOctober = state.monthCursor === '2026-10-01';
+  const referenceWeek = state.weekStart === '2026-10-12';
+  const totalHours = state.scheduleView === 'Week' && referenceWeek && !state.scheduleChanged ? 49 : state.scheduleView === 'Month' && referenceOctober && !state.scheduleChanged ? 104 : hours;
+  const shiftCount = state.scheduleView === 'Week' && referenceWeek && !state.scheduleChanged ? 5 : state.scheduleView === 'Month' && referenceOctober && !state.scheduleChanged ? 6 : workingShifts.length;
+  const periodName = state.scheduleView === 'Week' ? 'WEEK' : 'MONTH';
+  const summary = `<div class="card schedule-summary"><p class="eyebrow">SCHEDULED THIS ${periodName}</p><strong>${totalHours}h</strong><p>${shiftCount} shifts · scheduled span; breaks not deducted.</p></div>`;
+  const monthDate = dateFromISO(state.monthCursor);
+  const dateLabel = state.scheduleView === 'Week'
+    ? `${formatDateShort(dateFromISO(state.weekStart))} – ${formatDateShort(weekEnd)}, ${weekEnd.getFullYear()}`
+    : monthDate.toLocaleDateString('en', { month: 'long', year: 'numeric' }).toUpperCase();
   const dateNav = `<div class="calendar-nav"><button data-action="calendar-prev" aria-label="Previous ${state.scheduleView.toLowerCase()}">${icon('arrowLeft', 16)}</button><strong>${dateLabel}</strong><button data-action="calendar-next" aria-label="Next ${state.scheduleView.toLowerCase()}">${icon('arrow', 16)}</button></div>`;
   return `<p class="eyebrow">YOUR WORK, AT A GLANCE</p><h1>Your schedule</h1><p class="subhead schedule-subhead">Plan work, rest and time away.</p><div class="segmented view-switch"><button class="segment-button ${state.scheduleView === 'Week' ? 'active' : ''}" data-view="Week">Week</button><button class="segment-button ${state.scheduleView === 'Month' ? 'active' : ''}" data-view="Month">Month</button></div>${dateNav}${summary}${state.scheduleView === 'Week' ? `<div class="week-list">${weekCalendar()}</div><button class="btn add-shift-button" data-action="add-shift">${icon('plus', 18)} Add shift</button><div class="card callout-blue schedule-tip"><span class="callout-icon">${icon('info', 16)}</span><p>Mark a day off or sick in one tap. Your personal schedule stays yours.</p></div>` : `${monthCalendar()}<div class="card callout-blue schedule-tip"><span class="callout-icon">${icon('info', 16)}</span><p>Tap any date to add a shift or edit the one scheduled. Mark a day off or sick in one tap. Your personal schedule stays yours.</p></div><button class="btn add-shift-button" data-action="add-shift">${icon('plus', 18)} Add shift</button>`}`;
+}
+
+function dateFromISO(value) {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day, 12);
+}
+
+function isoFromDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function mondayOfISO(value) {
+  const date = dateFromISO(value);
+  date.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+  return isoFromDate(date);
+}
+
+function formatDateShort(date) {
+  return date.toLocaleDateString('en', { month: 'short', day: '2-digit' }).toUpperCase();
+}
+
+function profileDetailPage() {
+  const detail = state.profileDetail;
+  const back = `<button class="btn ghost detail-back" data-action="profile-back">${icon('arrowLeft', 16)} Profile</button>`;
+  if (detail === 'notifications') return `${back}<p class="eyebrow">YOUR REMINDERS</p><h1>Notifications</h1><p class="subhead">Choose which updates Circadia can send you.</p><div class="card detail-card"><h2>Stay in the loop</h2>${preference('Notifications', 'Allow Circadia reminders', state.notifications.Notifications)}${preference('Shift reminders', 'A heads-up before work', state.notifications['Shift reminders'])}${preference('Weekly recovery summary', 'A private recap of your check-ins', state.weeklySummary)}</div>`;
+  if (detail === 'reminders') return `${back}<p class="eyebrow">BEFORE YOUR SHIFT</p><h1>Shift reminders</h1><p class="subhead">Choose when you would like a gentle reminder.</p><div class="card detail-card">${['At shift start', '30 minutes before', '1 hour before', '2 hours before', 'Off'].map((timing) => `<button class="detail-choice ${state.reminderTiming === timing ? 'selected' : ''}" data-reminder-timing="${timing}"><span>${timing}</span><span class="radio ${state.reminderTiming === timing ? 'checked' : ''}"></span></button>`).join('')}</div>`;
+  if (detail === 'sleep-preferences') return `${back}<p class="eyebrow">PERSONALIZE YOUR PLAN</p><h1>Sleep preferences</h1><p class="subhead">Shape recovery guidance around your routine.</p><div class="card detail-card"><h2>Sleep window timing</h2>${['After work', 'Before work', 'Split rest'].map((timing) => `<button class="detail-choice ${state.sleepPreference === timing ? 'selected' : ''}" data-sleep-preference="${timing}"><span>${timing}</span><span class="radio ${state.sleepPreference === timing ? 'checked' : ''}"></span></button>`).join('')}<div class="settings-divider"></div><label class="field-label">SLEEP GOAL<select class="field" data-sleep-goal><option ${state.sleepGoal === '7 hours' ? 'selected' : ''}>7 hours</option><option ${state.sleepGoal === '8 hours' ? 'selected' : ''}>8 hours</option><option ${state.sleepGoal === '9 hours' ? 'selected' : ''}>9 hours</option></select></label></div>`;
+  if (detail === 'data') return `${back}<p class="eyebrow">YOUR INFORMATION</p><h1>Personal data</h1><p class="subhead">Your wellbeing information belongs to you.</p><div class="card detail-card"><div class="privacy-intro">${icon('heart', 22)}<strong>Your data stays personal.</strong></div><p class="detail-copy">Sleep check-ins and shift details are used to shape your personal recovery view. This prototype stores changes in this browser session.</p><button class="detail-action" data-action="export-data">${icon('arrow', 17)} Export my data</button><button class="detail-action danger" data-action="delete-data">Delete my check-ins</button></div>`;
+  return `${back}<p class="eyebrow">YOUR PRIVACY</p><h1>Hospital data sharing</h1><p class="subhead">Your schedule and recovery information stay yours.</p><div class="card detail-card sharing-setting"><span class="setting-icon">${icon('building', 22)}</span><div><h2>Share with my hospital</h2><p class="fine">${state.hospitalSharing ? 'Your hospital can view the information you choose to share.' : 'Off. Your hospital cannot see your personal recovery information.'}</p></div><button class="switch ${state.hospitalSharing ? 'on' : ''}" data-action="toggle-sharing" aria-label="Toggle hospital data sharing"></button></div><div class="card privacy-note-card">${icon('info', 17)} You can change this choice at any time.</div>`;
+}
+
+function loadingScreen() {
+  return `<div class="loading-brand"><span class="loading-mark">${icon('cycle', 34)}</span><strong>circadia</strong></div><div class="loading-content"><span class="loading-spinner"></span><p class="eyebrow">YOUR PLAN IS COMING TOGETHER</p><h1>Building your recovery plan</h1><p class="subhead">Lining up rest, work and the next useful steps.</p><div class="loading-progress"><i></i></div></div><p class="loading-footnote">MADE FOR THE RHYTHM YOU WORK</p>`;
+}
+
+function notificationCenter() {
+  return `<p class="eyebrow">YOUR UPDATES</p><div class="notification-title"><h1>Notifications</h1><button class="text-action" data-action="mark-read">Mark all read</button></div><div class="notification-list"><button class="card notification-card" data-page="Schedule"><span class="notification-icon">${icon('moon', 19)}</span><span><span class="eyebrow">UPCOMING SHIFT</span><strong>Your night shift starts at 19:00</strong><span class="fine">Take a moment to plan rest before work.</span><small>Today · 1 hour ago</small></span></button><button class="card notification-card" data-page="Today"><span class="notification-icon">${icon('bed', 19)}</span><span><span class="eyebrow">REST PLAN</span><strong>Your sleep window is ready</strong><span class="fine">Your plan is shaped around your upcoming shifts.</span><small>Today · 8:00 AM</small></span></button><button class="card notification-card ${state.readNotifications ? 'read' : ''}" data-page="Recovery"><span class="notification-icon">${icon('heart', 19)}</span><span><span class="eyebrow">RECOVERY</span><strong>Small check-ins add up</strong><span class="fine">Add a sleep check-in after your next rest.</span><small>Yesterday</small></span></button></div><div class="card notification-privacy">${icon('info', 16)} Notifications are private to you.</div>`;
+}
+
+function openShiftEditor(dateISO, returnPage = state.page, forceNew = false) {
+  const existing = !forceNew && state.shifts.find((shift) => shift.isoDate === dateISO);
+  state.shiftDate = existing?.isoDate || dateISO;
+  state.shiftEditing = existing?.isoDate || '';
+  state.shiftDraftStart = existing?.time?.split(' – ')[0] || '';
+  state.shiftDraftEnd = existing?.time?.split(' – ')[1] || '';
+  state.shiftReturnPage = returnPage;
+  state.newShiftType = existing?.type === 'Day Shift' ? 'day' : existing?.type === 'Off' ? 'off' : existing?.type === 'Sick' ? 'sick' : 'night';
+  state.page = 'ShiftEditor';
+  if (returnPage !== 'onboarding') state.tab = 'Schedule';
+  render();
+}
+
+function nextFreeDate(fromDate) {
+  let candidate = fromDate;
+  while (state.shifts.some((shift) => shift.isoDate === candidate)) {
+    const date = dateFromISO(candidate); date.setDate(date.getDate() + 1); candidate = isoFromDate(date);
+  }
+  return candidate;
+}
+
+function shiftEditorPage() {
+  const shift = state.shiftEditing ? state.shifts.find((item) => item.isoDate === state.shiftEditing) : null;
+  const start = state.shiftDraftStart || shift?.time?.split(' – ')[0] || (state.newShiftType === 'day' ? '07:00' : '19:00');
+  const end = state.shiftDraftEnd || shift?.time?.split(' – ')[1] || (state.newShiftType === 'day' ? '19:00' : '07:00');
+  const pageTitle = shift ? 'Edit shift' : 'Add a shift';
+  return `<button class="btn ghost detail-back" data-action="shift-back">${icon('arrowLeft', 16)} ${state.shiftReturnPage === 'onboarding' ? 'Onboarding' : state.shiftReturnPage}</button><p class="eyebrow">YOUR ROSTER</p><h1>${pageTitle}</h1><p class="subhead">Keep your schedule up to date, one shift at a time.</p><div class="card add-form"><label class="field-label">DATE<input class="field" type="date" id="shift-date" value="${state.shiftDate}"></label><label class="field-label">SHIFT TYPE<div class="status-options">${[['Day','day'],['Night','night'],['Off','off'],['Sick','sick']].map(([label,key]) => `<button type="button" class="status-option ${state.newShiftType === key ? `active ${key}` : ''}" data-shift-kind="${key}">${label}</button>`).join('')}</div></label>${state.newShiftType === 'off' || state.newShiftType === 'sick' ? '' : `<div class="field-row"><label class="field-label">START<input class="field" type="time" id="shift-start" value="${start}"></label><label class="field-label">END<input class="field" type="time" id="shift-end" value="${end}"></label></div>`}<div class="shift-length-card"><strong>SHIFT LENGTH</strong><b>${state.newShiftType === 'off' || state.newShiftType === 'sick' ? '0h' : `${hoursBetween(start, end)}h`}</b><small>Scheduled span · breaks not deducted.</small></div><button class="btn" data-action="save-shift">${shift ? 'Save changes' : 'Add shift'} <span>${icon('check', 17)}</span></button>${shift ? `<button class="btn delete-shift-button" data-action="delete-shift" data-date="${shift.isoDate}">${icon('trash', 17)} Delete shift</button>` : ''}</div>`;
 }
 
 function recovery() {
@@ -150,15 +245,20 @@ function preference(label, detail, on) {
 }
 
 function profile() {
-  return `<p class="eyebrow">YOUR SPACE, YOUR CHOICES</p><h1>Profile</h1><p class="subhead">Manage your routine and wellbeing preferences.</p><div class="card person-card"><span class="avatar">J</span><span><strong>Jamie Morgan</strong><small>Registered nurse · Rotating shifts</small></span></div><p class="eyebrow section-label">PREFERENCES</p><div class="card settings-card"><h2>Preferences</h2><p class="fine">Shape your reminders and sleep plan.</p><div class="settings-divider"></div>${profileRow('bell', 'Notifications', 'On', 'notifications')}${profileRow('clock', 'Shift reminders', '1 hour before', 'reminders')}${profileRow('moon', 'Sleep preferences', '', 'sleep-preferences')}</div><div class="card settings-card privacy-card"><h2>Privacy</h2><p class="fine">Your wellbeing information belongs to you.</p><div class="settings-divider"></div>${profileRow('heart', 'Personal Data', 'Private', 'data')}${profileRow('moon', 'Hospital data sharing', 'Off', 'sharing')}</div><p class="tiny-label footer-brand">CIRCADIA · A PERSONAL GUIDE TO SHIFT WORK</p>`;
+  return `<p class="eyebrow">YOUR SPACE, YOUR CHOICES</p><h1>Profile</h1><p class="subhead">Manage your routine and wellbeing preferences.</p><div class="card person-card"><span class="avatar">J</span><span><strong>Jamie Morgan</strong><small>Registered nurse · Rotating shifts</small></span></div><p class="eyebrow section-label">PREFERENCES</p><div class="card settings-card"><h2>Preferences</h2><p class="fine">Shape your reminders and sleep plan.</p><div class="settings-divider"></div>${profileRow('bell', 'Notifications', state.notifications.Notifications ? 'On' : 'Off', 'notifications')}${profileRow('clock', 'Shift reminders', state.reminderTiming, 'reminders')}${profileRow('moon', 'Sleep preferences', state.sleepPreference, 'sleep-preferences')}</div><div class="card settings-card privacy-card"><h2>Privacy</h2><p class="fine">Your wellbeing information belongs to you.</p><div class="settings-divider"></div>${profileRow('heart', 'Personal Data', 'Private', 'data')}${profileRow('moon', 'Hospital data sharing', state.hospitalSharing ? 'On' : 'Off', 'sharing')}</div><p class="tiny-label footer-brand">CIRCADIA · A PERSONAL GUIDE TO SHIFT WORK</p>`;
 }
 
 function profileRow(iconName, name, value, action) {
   return `<button class="profile-row" data-action="profile-detail" data-detail="${action}"><span class="profile-row-icon">${icon(iconName, 18)}</span><span class="profile-row-name">${name}</span><span class="profile-value">${value}${value ? ' ' : ''}${icon('arrow', 16)}</span></button>`;
 }
 
-function addShiftPage() {
-  return `<p class="eyebrow">YOUR ROSTER</p><h1>Add a shift</h1><div class="card add-form"><label class="field-label">DATE<input class="field" type="date" id="shift-date" value="2026-10-15"></label><label class="field-label">DAY STATUS<div class="status-options">${[['Day','day'],['Night','night'],['Off','off'],['Sick','sick']].map(([label,key]) => `<button class="status-option ${state.newShiftType === key ? `active ${key}` : ''}" data-shift-kind="${key}">${label}</button>`).join('')}</div></label><div class="field-row"><label class="field-label">START<input class="field" type="time" id="shift-start" value="19:00"></label><label class="field-label">END<input class="field" type="time" id="shift-end" value="07:00"></label></div><div class="shift-length-card"><strong>SHIFT LENGTH</strong><b>12h</b><small>Scheduled span · breaks not deducted.</small></div><button class="btn" data-action="save-shift">Save shift <span>✓</span></button></div>`;
+function hoursBetween(start, end) {
+  if (!start || !end) return 0;
+  const [startHour, startMinute] = start.split(':').map(Number);
+  const [endHour, endMinute] = end.split(':').map(Number);
+  let minutes = endHour * 60 + endMinute - (startHour * 60 + startMinute);
+  if (minutes <= 0) minutes += 24 * 60;
+  return Math.round(minutes / 60 * 10) / 10;
 }
 
 function modal() {
@@ -168,16 +268,20 @@ function modal() {
 
 function pageContent() {
   if (state.page === 'onboarding') return onboarding();
+  if (state.page === 'BuildingPlan') return loadingScreen();
   if (state.page === 'Today') return today();
   if (state.page === 'Schedule') return schedule();
   if (state.page === 'Recovery') return recovery();
-  if (state.page === 'AddShift') return addShiftPage();
+  if (state.page === 'ShiftEditor') return shiftEditorPage();
+  if (state.page === 'ProfileDetail') return profileDetailPage();
+  if (state.page === 'Notifications') return notificationCenter();
   return profile();
 }
 
 function render() {
   const onboardingPage = state.page === 'onboarding';
-  root.innerHTML = `<div class="shell"><section class="app-frame" aria-label="Circadia shift-aware recovery prototype">${statusBar()}${onboardingPage ? '' : header()}<div class="screen ${onboardingPage ? 'onboarding' : ''}">${pageContent()}</div>${onboardingPage ? '' : nav()}<div class="toast" id="toast" role="status"></div>${modal()}</section></div>`;
+  const loading = state.page === 'BuildingPlan';
+  root.innerHTML = `<div class="shell"><section class="app-frame" aria-label="Circadia shift-aware recovery prototype">${statusBar()}${onboardingPage || loading ? '' : header()}<div class="screen ${onboardingPage ? 'onboarding' : ''} ${loading ? 'loading-screen' : ''}">${pageContent()}</div>${onboardingPage || loading ? '' : nav()}<div class="toast" id="toast" role="status"></div>${modal()}</section></div>`;
 }
 
 function toast(message) {
@@ -190,27 +294,51 @@ function toast(message) {
 }
 
 function finishOnboarding() {
-  state.page = 'Today';
   state.tab = 'Today';
+  state.page = 'BuildingPlan';
+  render();
+  clearTimeout(state.loadingTimer);
+  state.loadingTimer = setTimeout(() => {
+    if (state.page !== 'BuildingPlan') return;
+    state.page = 'Today';
+    render();
+  }, 1350);
 }
 
 function addShift() {
-  const value = document.querySelector('#shift-date')?.value || '2026-10-19';
+  const value = document.querySelector('#shift-date')?.value || state.shiftDate;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(dateFromISO(value).getTime())) {
+    toast('Choose a valid shift date');
+    return;
+  }
+  const occupied = state.shifts.find((item) => item.isoDate === value && item.isoDate !== state.shiftEditing);
+  if (occupied) {
+    toast('There is already a shift on that date. Edit it or choose another day.');
+    return;
+  }
   const type = state.newShiftType === 'day' ? 'Day Shift' : state.newShiftType === 'off' ? 'Rest day' : state.newShiftType === 'sick' ? 'Sick day' : 'Night Shift';
-  const start = document.querySelector('#shift-start')?.value || '19:00';
-  const end = document.querySelector('#shift-end')?.value || '07:30';
+  const start = document.querySelector('#shift-start')?.value || (state.newShiftType === 'day' ? '07:00' : '19:00');
+  const end = document.querySelector('#shift-end')?.value || (state.newShiftType === 'day' ? '19:00' : '07:30');
   const [year, month, day] = value.split('-').map(Number);
   const weekday = new Intl.DateTimeFormat('en', { weekday: 'short' }).format(new Date(year, month - 1, day)).toUpperCase();
-  const record = { short: weekday, date: String(day).padStart(2, '0'), title: type === 'Rest day' ? 'Day Off' : type, time: type === 'Rest day' ? 'Recovery day' : `${start} – ${end}`, type: type === 'Rest day' ? 'Off' : type === 'Sick day' ? 'Sick' : type };
-  const old = state.shifts.findIndex((item) => item.date === record.date);
-  if (old >= 0) state.shifts[old] = record; else state.shifts.push(record);
-  state.shifts.sort((a, b) => Number(a.date) - Number(b.date));
-  state.selectedDate = record.date;
-  state.showAddShift = false;
-  state.page = 'Schedule';
-  state.tab = 'Schedule';
+  const existing = state.shiftEditing ? state.shifts.find((item) => item.isoDate === state.shiftEditing) : null;
+  const normalizedType = type === 'Rest day' ? 'Off' : type === 'Sick day' ? 'Sick' : type;
+  const record = { ...existing, short: weekday, date: String(day).padStart(2, '0'), isoDate: value, title: normalizedType === 'Off' ? 'Day Off' : normalizedType === 'Sick' ? 'Sick day' : normalizedType, time: normalizedType === 'Off' ? 'Recovery day' : normalizedType === 'Sick' ? 'Unavailable' : `${start} – ${end}`, type: normalizedType, hours: normalizedType === 'Off' || normalizedType === 'Sick' ? 0 : hoursBetween(start, end), onboarding: existing?.onboarding ?? state.shiftReturnPage === 'onboarding' };
+  state.shifts = state.shifts.filter((item) => item.isoDate !== state.shiftEditing && item.isoDate !== value);
+  state.shifts.push(record);
+  state.shifts.sort((a, b) => a.isoDate.localeCompare(b.isoDate));
+  state.selectedDate = value;
+  state.shiftDate = value;
+  state.scheduleChanged = true;
+  state.monthCursor = `${value.slice(0, 7)}-01`;
+  state.weekStart = mondayOfISO(value);
+  const returnPage = state.shiftReturnPage;
+  state.page = returnPage === 'onboarding' ? 'onboarding' : returnPage;
+  if (returnPage === 'onboarding') state.step = 3;
+  state.tab = returnPage === 'Today' ? 'Today' : 'Schedule';
+  state.shiftEditing = '';
   render();
-  toast('Shift added to your roster');
+  toast(existing ? 'Shift updated' : 'Shift added to your roster');
 }
 
 root.addEventListener('input', (event) => {
@@ -219,10 +347,19 @@ root.addEventListener('input', (event) => {
     const display = root.querySelector('.sleep-reading');
     if (display) display.textContent = `${state.sleep.toFixed(0)} hours`;
   }
+  if (event.target.id === 'shift-date') state.shiftDate = event.target.value;
+  if (event.target.id === 'shift-start') state.shiftDraftStart = event.target.value;
+  if (event.target.id === 'shift-end') state.shiftDraftEnd = event.target.value;
+  if (event.target.id === 'shift-start' || event.target.id === 'shift-end') {
+    const start = root.querySelector('#shift-start')?.value;
+    const end = root.querySelector('#shift-end')?.value;
+    const length = root.querySelector('.shift-length-card b');
+    if (length && start && end) length.textContent = `${hoursBetween(start, end)}h`;
+  }
 });
 
 root.addEventListener('click', (event) => {
-  const target = event.target.closest('button, [data-action="modal-backdrop"]');
+  const target = event.target.closest('button, [data-action]');
   if (!target) return;
   if (target.dataset.page) {
     state.page = target.dataset.page; state.tab = target.dataset.page; render(); return;
@@ -230,7 +367,6 @@ root.addEventListener('click', (event) => {
   if (target.dataset.selectPattern) { state.workPattern = target.dataset.selectPattern; render(); return; }
   if (target.dataset.selectMethod) { state.rosterMethod = target.dataset.selectMethod; render(); return; }
   if (target.dataset.view) { state.scheduleView = target.dataset.view; render(); return; }
-  if (target.dataset.selectDay) { state.selectedDate = target.dataset.selectDay; render(); return; }
   if (target.dataset.mood) {
     const currentScroll = root.querySelector('.screen')?.scrollTop ?? 0;
     state.mood = target.dataset.mood;
@@ -242,10 +378,58 @@ root.addEventListener('click', (event) => {
   }
   if (target.dataset.sleepSource) { state.sleepSource = target.dataset.sleepSource; render(); return; }
   if (target.hasAttribute('data-toggle-cycle')) { state.cycle = !state.cycle; render(); toast(state.cycle ? 'Cycle tracking enabled' : 'Cycle tracking paused'); return; }
-  if (target.dataset.togglePref) { state.notifications[target.dataset.togglePref] = !state.notifications[target.dataset.togglePref]; render(); return; }
-  if (target.dataset.shiftKind) { state.newShiftType = target.dataset.shiftKind; render(); return; }
+  if (target.dataset.togglePref) {
+    if (target.dataset.togglePref === 'Weekly recovery summary') state.weeklySummary = !state.weeklySummary;
+    else state.notifications[target.dataset.togglePref] = !state.notifications[target.dataset.togglePref];
+    render(); return;
+  }
+  if (target.dataset.shiftKind) {
+    const nextType = target.dataset.shiftKind;
+    if (nextType === 'day' && (!state.shiftDraftStart || state.shiftDraftStart === '19:00')) { state.shiftDraftStart = '07:00'; state.shiftDraftEnd = '19:00'; }
+    if (nextType === 'night' && (!state.shiftDraftStart || state.shiftDraftStart === '07:00')) { state.shiftDraftStart = '19:00'; state.shiftDraftEnd = '07:30'; }
+    state.newShiftType = nextType; render(); return;
+  }
+  if (target.dataset.reminderTiming) { state.reminderTiming = target.dataset.reminderTiming; render(); return; }
+  if (target.dataset.sleepPreference) { state.sleepPreference = target.dataset.sleepPreference; render(); return; }
   const action = target.dataset.action;
+  if (action === 'notifications') { state.page = 'Notifications'; render(); return; }
   if (action === 'profile') { state.page = 'Profile'; state.tab = 'Profile'; render(); return; }
+  if (action === 'profile-detail') { state.profileDetail = target.dataset.detail; state.page = 'ProfileDetail'; state.tab = 'Profile'; render(); return; }
+  if (action === 'profile-back') { state.page = 'Profile'; state.tab = 'Profile'; render(); return; }
+  if (action === 'toggle-sharing') { state.hospitalSharing = !state.hospitalSharing; render(); return; }
+  if (action === 'mark-read') { state.readNotifications = true; render(); return; }
+  if (action === 'export-data') {
+    const data = { sleepHours: state.sleep, latestMood: state.mood, shifts: state.shifts, exportedAt: new Date().toISOString() };
+    const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })); link.download = 'circadia-personal-data.json'; link.click(); URL.revokeObjectURL(link.href);
+    toast('Your data export has downloaded'); return;
+  }
+  if (action === 'delete-data') { state.mood = ''; state.sleep = 0; render(); toast('Check-in data cleared'); return; }
+  if (action === 'calendar-prev' || action === 'calendar-next') {
+    const direction = action === 'calendar-next' ? 1 : -1;
+    if (state.scheduleView === 'Month') {
+      const month = dateFromISO(state.monthCursor); month.setDate(1); month.setMonth(month.getMonth() + direction);
+      state.monthCursor = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}-01`;
+    } else {
+      const week = dateFromISO(state.weekStart); week.setDate(week.getDate() + direction * 7); state.weekStart = isoFromDate(week);
+    }
+    render(); return;
+  }
+  if (action === 'edit-date') { openShiftEditor(target.dataset.date, 'Schedule'); return; }
+  if (action === 'edit-shift') { openShiftEditor(target.dataset.date, state.page); return; }
+  if (action === 'shift-back') {
+    state.page = state.shiftReturnPage === 'onboarding' ? 'onboarding' : state.shiftReturnPage;
+    if (state.page === 'onboarding') state.step = 3;
+    render(); return;
+  }
+  if (action === 'delete-shift') {
+    state.shifts = state.shifts.filter((shift) => shift.isoDate !== target.dataset.date);
+    state.scheduleChanged = true;
+    state.selectedDate = target.dataset.date;
+    state.page = state.shiftReturnPage === 'onboarding' ? 'onboarding' : state.shiftReturnPage;
+    if (state.page === 'onboarding') state.step = 3;
+    state.shiftEditing = '';
+    render(); toast('Shift deleted'); return;
+  }
   if (action === 'explore') { finishOnboarding(); render(); return; }
   if (action === 'next') {
     if (state.step < 3) state.step += 1; else finishOnboarding();
@@ -253,26 +437,20 @@ root.addEventListener('click', (event) => {
   }
   if (action === 'back') { if (state.step > 0) state.step -= 1; render(); return; }
   if (action === 'add-row') {
-    const nextDate = Math.max(...state.shifts.map((item) => Number(item.date))) + 1;
-    const weekDay = new Intl.DateTimeFormat('en', { weekday: 'short' }).format(new Date(2026, 9, nextDate)).toUpperCase();
-    state.shifts.push({ short: weekDay, date: String(nextDate).padStart(2, '0'), title: 'Night shift', time: '19:00 – 07:30', type: 'Night Shift', hours: 12 });
-    render(); return;
+    const roster = state.shifts.filter((shift) => shift.onboarding);
+    const last = roster.length ? roster.reduce((latest, shift) => shift.isoDate > latest ? shift.isoDate : latest, roster[0].isoDate) : state.selectedDate;
+    const next = dateFromISO(last); next.setDate(next.getDate() + 1);
+    openShiftEditor(nextFreeDate(isoFromDate(next)), 'onboarding', true); return;
   }
-  if (action === 'add-shift') { state.page = 'AddShift'; state.tab = 'Schedule'; render(); return; }
-  if (action === 'cycle-shift') {
-    const row = target.closest('.editable-shift');
-    const index = [...root.querySelectorAll('.editable-shift')].indexOf(row);
-    const shift = state.shifts.slice(3)[index];
-    if (shift) {
-      if (shift.type === 'Night Shift') Object.assign(shift, { title: 'Day Off', time: 'Recovery day', type: 'Off', hours: 0 });
-      else if (shift.type === 'Off') Object.assign(shift, { title: 'Day shift', time: '07:00 – 19:00', type: 'Day Shift', hours: 12 });
-      else Object.assign(shift, { title: 'Night shift', time: '19:00 – 07:30', type: 'Night Shift', hours: shift.hours || 12 });
-      render();
-    }
-    return;
+  if (action === 'add-shift') {
+    const candidate = state.scheduleView === 'Month'
+      ? (state.selectedDate?.startsWith(state.monthCursor.slice(0, 7)) ? state.selectedDate : `${state.monthCursor.slice(0, 7)}-01`)
+      : (state.selectedDate >= state.weekStart && state.selectedDate <= isoFromDate((() => { const end = dateFromISO(state.weekStart); end.setDate(end.getDate() + 6); return end; })()) ? state.selectedDate : state.weekStart);
+    const start = nextFreeDate(candidate);
+    openShiftEditor(start, 'Schedule', true); return;
   }
   if (action === 'cycle-hours') {
-    const shift = state.shifts.find((item) => item.date === target.dataset.date);
+    const shift = state.shifts.find((item) => item.isoDate === target.dataset.date);
     if (shift) {
       const choices = [8, 10, 12, 14];
       shift.hours = choices[(choices.indexOf(Number(shift.hours ?? 12)) + 1) % choices.length];
@@ -280,19 +458,20 @@ root.addEventListener('click', (event) => {
       const end = (start + shift.hours) % 24;
       const fmt = (hour) => `${String(hour).padStart(2, '0')}:00`;
       shift.time = `${fmt(start)} – ${fmt(end)}`;
+      state.scheduleChanged = true;
       render();
     }
     return;
   }
-  if (action === 'close-modal') { state.showAddShift = false; render(); return; }
-  if (action === 'modal-backdrop' && target === event.target) { state.showAddShift = false; render(); return; }
   if (action === 'save-shift') { addShift(); return; }
   if (action === 'save-sleep') { toast(`${state.sleep.toFixed(1)} hours saved`); return; }
   if (action === 'log-day') { toast('Today’s note is ready to add'); return; }
   if (action === 'edit-profile') { toast('Profile editing is part of this prototype'); return; }
-  if (action === 'profile-detail') { toast(`${target.dataset.detail.replace('-', ' ')} settings`); return; }
   if (action === 'restart') { state.page = 'onboarding'; state.step = 0; render(); return; }
-  if (action === 'edit-shift') { state.page = 'Schedule'; state.tab = 'Schedule'; state.showAddShift = true; render(); }
+});
+
+root.addEventListener('change', (event) => {
+  if (event.target.matches('[data-sleep-goal]')) state.sleepGoal = event.target.value;
 });
 
 render();
