@@ -86,7 +86,7 @@ function monthCalendar() {
 }
 
 function schedule() {
-  return `<p class="eyebrow">YOUR WORK, AT A GLANCE</p><h1> Your schedule</h1><div class="segmented view-switch"><button class="segment-button ${state.scheduleView === 'Week' ? 'active' : ''}" data-view="Week">Week</button><button class="segment-button ${state.scheduleView === 'Month' ? 'active' : ''}" data-view="Month">Month</button></div><p class="subhead schedule-subhead">Plan work, rest and time away.</p><div class="card schedule-card">${state.scheduleView === 'Week' ? weekCalendar() : `<div class="month-overview"><p class="eyebrow">SCHEDULED THIS MONTH</p><strong>104h</strong><p>6 shifts · scheduled span, breaks not deducted.</p></div>${monthCalendar()}`}</div>${state.scheduleView === 'Week' ? '' : ''}<button class="btn" data-action="add-shift">＋ Add shift</button><div class="card callout-blue schedule-tip"><span class="callout-icon">ⓘ</span><p>Mark a day off or sick in one tap. Your personal schedule stays yours.</p></div>`;
+  return `<p class="eyebrow">YOUR WORK, AT A GLANCE</p><h1>Your schedule</h1><div class="segmented view-switch"><button class="segment-button ${state.scheduleView === 'Week' ? 'active' : ''}" data-view="Week">Week</button><button class="segment-button ${state.scheduleView === 'Month' ? 'active' : ''}" data-view="Month">Month</button></div><p class="subhead schedule-subhead">Plan work, rest and time away.</p><div class="card schedule-card">${state.scheduleView === 'Week' ? weekCalendar() : `<div class="month-overview"><p class="eyebrow">SCHEDULED THIS MONTH</p><strong>104h</strong><p>6 shifts · scheduled span, breaks not deducted.</p></div>${monthCalendar()}`}</div><button class="btn" data-action="add-shift">＋ Add shift</button><div class="card callout-blue schedule-tip"><span class="callout-icon">ⓘ</span><p>Mark a day off or sick in one tap. Your personal schedule stays yours.</p></div>`;
 }
 
 function recovery() {
@@ -165,8 +165,8 @@ function addShift() {
 root.addEventListener('input', (event) => {
   if (event.target.matches('[data-sleep-range]')) {
     state.sleep = Number(event.target.value);
-    const display = event.target.parentElement.querySelector('.sleep-hours');
-    if (display) display.textContent = `${state.sleep.toFixed(1)}h`;
+    const display = root.querySelector('.sleep-reading');
+    if (display) display.textContent = `${state.sleep.toFixed(0)} hours`;
   }
 });
 
