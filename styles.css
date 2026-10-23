@@ -57,7 +57,7 @@ h3 { font: 700 12px/1.25 Inter, sans-serif; margin-bottom: 4px; }
 .card.lime { background: var(--lime); border-color: transparent; }
 .card.deep { background: var(--deep); color: white; border-color: transparent; }
 .card.deep h2, .card.deep h3, .card.deep p { color: inherit; }
-.card.mint { background: #f3f8df; border-color: #edf1d7; }
+.card.mint { background: #F4F9DF; border-color: #edf1d7; }
 .card-title-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
 .card-title-row .eyebrow { margin: 0; color: inherit; }
 .pill { display: inline-flex; align-items: center; justify-content: center; gap: 4px; border-radius: 7px; padding: 4px 7px; background: #eaf0ed; color: var(--muted); font-size: 7px; line-height: 1; font-weight: 700; white-space: nowrap; }
