@@ -4,13 +4,13 @@
   color-scheme: light;
   --canvas: #f4f7f5;
   --paper: #fff;
-  --ink: #214943;
+  --ink: #173C36;
   --muted: #73817d;
   --line: #e2e9e6;
   --aqua: #11b8a5;
   --mint: #dff4ef;
-  --lime: #d8f36a;
-  --deep: #183f39;
+  --lime: #D7F36A;
+  --deep: #173C36;
   --blue: #4eb1e3;
   --lavender: #e3eaff;
   --radius: 11px;
@@ -224,5 +224,54 @@ input[type=range] { width: 100%; accent-color: var(--deep); height: 12px; }
 @media (max-height: 720px) and (min-width: 601px) {
   .shell { padding: 14px; }
   .app-frame { height: calc(100vh - 28px); max-height: unset; min-height: 560px; }
+}
+
+/* Onboarding reference: full-size iPhone 15 Pro screen proportions and type scale. */
+.app-frame:has(.screen.onboarding) { background: #f3f7f5; }
+.statusbar { height: 39px; padding: 10px 25px 5px; font-size: 12px; }
+.status-icons { gap: 6px; }
+.signal { width: 16px; height: 12px; }
+.wifi { width: 15px; height: 11px; }
+.battery { width: 22px; height: 11px; }
+.screen.onboarding { padding: 30px 20px 26px; }
+.progress { gap: 7px; margin: 0 0 12px; }
+.progress span { width: 37px; height: 4px; }
+.progress-copy { font-size: 10px; line-height: 1.3; margin: 0 0 17px; letter-spacing: 0; }
+.onboarding .eyebrow { font-size: 10px; line-height: 1.35; margin-bottom: 8px; letter-spacing: 0; }
+.onboarding h1 { font-size: 25px; line-height: 1.16; letter-spacing: -.55px; margin: 0 0 16px; }
+.onboarding .subhead { font-size: 14px; line-height: 1.35; margin-bottom: 15px; }
+.onboarding-callout { min-height: 64px; padding: 13px 15px; gap: 11px; border-radius: 16px; margin: 20px 0; }
+.onboarding-callout .callout-icon { color: var(--ink); }
+.onboarding-callout .eyebrow { font-size: 10px; margin: 0 0 5px; }
+.onboarding-callout .fine { color: #586a65; font-size: 12px; }
+.onboarding .btn { min-height: 48px; padding: 12px 14px; border-radius: 14px; font-size: 14px; margin-top: 10px; }
+.onboarding .btn.ghost { min-height: 38px; padding: 8px; margin-top: 8px; font-size: 13px; }
+.onboarding .option { min-height: 64px; padding: 11px 13px; gap: 10px; border-radius: 13px; margin-bottom: 10px; border-color: #dbe5e1; }
+.onboarding .option.selected { background: #dff4ef; border: 1.5px solid #456d65; }
+.onboarding .option-copy { gap: 12px; }
+.onboarding .option-icon { width: 18px; display: grid; place-items: center; }
+.onboarding .option-copy strong { font-size: 14px; margin-bottom: 4px; }
+.onboarding .option-copy small { font-size: 11px; line-height: 1.3; }
+.onboarding .radio { width: 21px; height: 21px; border-color: #dbe5e1; }
+.onboarding .selected .radio { border-width: 1.5px; }
+.onboarding .selected .radio::after { width: 13px; height: 13px; }
+.onboarding .helper { font-size: 13px; line-height: 1.35; margin: 13px 0 10px; }
+.roster-rows { padding: 0; border: 0; border-radius: 0; background: transparent; margin: 0 0 10px; display: grid; gap: 10px; }
+.onboarding .editable-shift { position: relative; min-height: 63px; grid-template-columns: 57px minmax(0, 1fr) auto auto; gap: 10px; padding: 8px 10px; border: 1px solid #dce6e2; border-radius: 13px; background: #fff; }
+.onboarding .editable-shift.roster-today { min-height: 78px; }
+.onboarding .date-badge { min-height: 44px; border-right: 1px solid #dce6e2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 12px; line-height: 1.2; font-weight: 400; }
+.onboarding .date-badge strong { font-size: 14px; color: var(--ink); }
+.onboarding .date-badge em { font-style: normal; font-size: 9px; font-weight: 700; border-radius: 10px; background: var(--lime); padding: 4px 6px; margin-bottom: 2px; }
+.onboarding .roster-shift-name strong { display: block; font-size: 14px; line-height: 1.25; }
+.onboarding .roster-shift-name small { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.onboarding .editable-shift .pill { font-size: 11px; padding: 8px 10px; border-radius: 10px; }
+.onboarding .tiny-hours { font-size: 11px; font-weight: 700; color: #3f625b; background: #e8efec; border-radius: 10px; padding: 8px 9px; }
+.onboarding .roster-add { justify-content: center; min-height: 48px; margin: 0 0 12px; border-radius: 14px; font-size: 14px; }
+.onboarding .total-card { padding: 13px 15px; margin: 0 0 2px; border-radius: 15px; background: #e3eaff; }
+.onboarding .total-card .eyebrow { margin: 0 0 8px; }
+.onboarding .total-card strong { font-size: 17px; }
+@media (max-width: 600px) {
+  .app-frame:has(.screen.onboarding) { border-radius: 0; }
+  .screen.onboarding { padding: 30px 20px 26px; }
 }
 
