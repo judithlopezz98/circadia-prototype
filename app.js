@@ -43,7 +43,7 @@ const state = {
   ], notificationOpen: false,
   shifts: readStoredArray('circadia-shifts').length ? readStoredArray('circadia-shifts') : [...days], profileDetail: '', profileReturnPage: 'Profile', shiftDate: '2026-10-15', shiftReturnPage: 'Schedule', shiftEditing: '',
   newShiftType: 'night', reminderTiming: '1 hour before', hospitalSharing: false, readNotifications: false,
-  sleepPreference: 'After work', sleepGoal: '8 hours', weeklySummary: true, scheduleChanged: false, toastTimer: null, loadingTimer: null,
+  sleepPreference: 'After work', sleepGoal: '8 hours', weeklySummary: true, scheduleChanged: false, toastTimer: null, toastMessage: '', toastExpiresAt: 0, loadingTimer: null,
 };
 
 const symbols = { Today: 'sun', Schedule: 'calendar', Recovery: 'heart', Profile: 'user' };
@@ -418,24 +418,44 @@ function render() {
   const loading = state.page === 'BuildingPlan';
   const auth = state.page === 'Auth';
   root.innerHTML = `<div class="shell"><section class="app-frame" aria-label="Circadia shift-aware recovery prototype">${statusBar()}${onboardingPage || loading || auth ? '' : header()}<div class="screen ${onboardingPage ? 'onboarding' : ''} ${loading ? 'loading-screen' : ''} ${auth ? 'auth-screen' : ''}">${pageContent()}</div>${onboardingPage || loading || auth ? '' : nav()}${state.notificationOpen ? notificationCenter() : ''}<div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-mark">${icon('info', 16)}</span><span class="toast-message"></span><button class="toast-dismiss" data-action="dismiss-toast" aria-label="Dismiss message">×</button></div>${modal()}</section></div>`;
+  syncToast();
   requestAnimationFrame(() => {
     const screen = root.querySelector('.screen');
     if (screen) screen.scrollTop = state.scrollPositions[state.page] || 0;
   });
 }
 
-function toast(message) {
+function syncToast() {
   const element = document.querySelector('#toast');
   if (!element) return;
+  if (!state.toastMessage || Date.now() >= state.toastExpiresAt) {
+    element.classList.remove('show');
+    state.toastMessage = '';
+    state.toastExpiresAt = 0;
+    clearTimeout(state.toastTimer);
+    state.toastTimer = null;
+    return;
+  }
+  const success = /saved|added|enabled|complete|deleted|logged|downloaded|updated|cleared|paused|sent/i.test(state.toastMessage);
   const text = element.querySelector('.toast-message');
-  if (text) text.textContent = message;
-  const success = /saved|added|enabled|complete|deleted|logged|downloaded|updated|cleared|paused|sent/i.test(message);
   const mark = element.querySelector('.toast-mark');
+  if (text) text.textContent = state.toastMessage;
   if (mark) mark.innerHTML = icon(success ? 'check' : 'info', 16);
   element.classList.toggle('is-success', success);
   element.classList.add('show');
+}
+
+function toast(message) {
   clearTimeout(state.toastTimer);
-  state.toastTimer = setTimeout(() => element.classList.remove('show'), 3200);
+  state.toastMessage = message;
+  state.toastExpiresAt = Date.now() + 3200;
+  syncToast();
+  state.toastTimer = setTimeout(() => {
+    state.toastMessage = '';
+    state.toastExpiresAt = 0;
+    state.toastTimer = null;
+    document.querySelector('#toast')?.classList.remove('show');
+  }, 3200);
 }
 
 function finishOnboarding() {
@@ -620,7 +640,7 @@ root.addEventListener('click', (event) => {
   if (target.dataset.reminderTiming) { state.reminderTiming = target.dataset.reminderTiming; render(); return; }
   if (target.dataset.sleepPreference) { state.sleepPreference = target.dataset.sleepPreference; render(); return; }
   const action = target.dataset.action;
-  if (action === 'dismiss-toast') { const notice = root.querySelector('#toast'); notice?.classList.remove('show'); clearTimeout(state.toastTimer); return; }
+  if (action === 'dismiss-toast') { const notice = root.querySelector('#toast'); notice?.classList.remove('show'); state.toastMessage = ''; state.toastExpiresAt = 0; clearTimeout(state.toastTimer); state.toastTimer = null; return; }
   if (action === 'auth-create' || action === 'auth-login') {
     if (state.page !== 'Auth') state.authReturnPage = state.page === 'Profile' ? 'Profile' : state.page === 'onboarding' ? 'onboarding' : state.page === 'GuestPreview' ? 'GuestPreview' : 'Today';
     state.authView = action === 'auth-create' ? 'create' : 'login';
