@@ -1,13 +1,13 @@
 const root = document.querySelector('#app');
 
 const days = [
-  { short: 'MON', date: '12', title: 'Day shift', time: '07:00 – 19:00', type: 'Day Shift' },
-  { short: 'TUE', date: '13', title: 'Day shift', time: '07:00 – 19:00', type: 'Day Shift' },
-  { short: 'WED', date: '14', title: 'Night shift', time: '19:00 – 07:00', type: 'Night Shift' },
-  { short: 'THU', date: '15', title: 'Night shift', time: '19:00 – 07:30', type: 'Night Shift' },
-  { short: 'FRI', date: '16', title: 'Night shift', time: '19:00 – 07:00', type: 'Night Shift' },
-  { short: 'SAT', date: '17', title: 'Day off', time: 'Recovery day', type: 'Off' },
-  { short: 'SUN', date: '18', title: 'Rest day', time: 'No shift planned', type: 'Off' },
+  { short: 'MON', date: '12', title: 'Day shift', time: '07:00 – 19:00', type: 'Day Shift', hours: 12 },
+  { short: 'TUE', date: '13', title: 'Day shift', time: '07:00 – 19:00', type: 'Day Shift', hours: 12 },
+  { short: 'WED', date: '14', title: 'Night shift', time: '19:00 – 07:00', type: 'Night Shift', hours: 12 },
+  { short: 'THU', date: '15', title: 'Night shift', time: '19:00 – 07:30', type: 'Night Shift', hours: 12 },
+  { short: 'FRI', date: '16', title: 'Night shift', time: '19:00 – 07:00', type: 'Night Shift', hours: 12 },
+  { short: 'SAT', date: '17', title: 'Day off', time: 'Recovery day', type: 'Off', hours: 0 },
+  { short: 'SUN', date: '18', title: 'Rest day', time: 'No shift planned', type: 'Off', hours: 0 },
 ];
 
 const state = {
@@ -29,6 +29,10 @@ const iconPaths = {
   bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
   moon: '<path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z"/>',
   rotate: '<path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9A7 7 0 0 1 18 6l2 2M4 16l2 2a7 7 0 0 0 12.4-3"/>',
+  shiftCycle: '<circle cx="7" cy="12" r="3.1"/><path d="M7 6.5V5m0 14v-1.5M1.5 12H3m8 0h1.5M3.1 8.1 4.2 9.2m5.6 5.6 1.1 1.1M3.1 15.9l1.1-1.1m5.6-5.6 1.1-1.1"/><path d="M21 14.5a6 6 0 0 1-7.8-7.8 6 6 0 1 0 7.8 7.8Z"/><path d="M14 3.5a9 9 0 0 1 6.5 3.2l1.2-1.2M21.7 5v2.8h-2.8"/>',
+  pencil: '<path d="m15 5 4 4M4 20l4.2-.9L19 8.3a2.1 2.1 0 0 0-3-3L5.2 16.1 4 20Z"/><path d="m13.5 6.5 4 4"/>',
+  imageUpload: '<rect x="3" y="5" width="15" height="15" rx="2.5"/><circle cx="8" cy="10" r="1.3"/><path d="m5 17 4-4 2.5 2.5 2-2 2.5 2.5M19 3v7m-3.5-3.5L19 3l3.5 3.5"/>',
+  calendarAdd: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M16 3v4M8 3v4M3 10h18M12 13v5m-2.5-2.5h5"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   upload: '<path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -71,19 +75,24 @@ function actionButtons(primary, secondary = 'Back') {
 function onboarding() {
   if (state.step === 0) return `${progress(0)}<p class="eyebrow">PERSONAL SUPPORT FOR SHIFT WORK</p><h1>Your shifts change. Your recovery plan adapts.</h1><p class="subhead">Practical sleep and recovery support shaped around the shifts you actually work.</p><div class="card callout-blue onboarding-callout"><span class="callout-icon">${icon('heart', 20)}</span><div><p class="eyebrow">BUILT FOR ROTATING SHIFTS</p><p class="fine">More room for your life between shifts.</p></div></div><button class="btn" data-action="next">Set up my schedule <span>${icon('arrow', 17)}</span></button>`;
   if (state.step === 1) {
-    const patterns = [['Day shifts', 'Mostly daytime hours', 'sun'], ['Night shifts', 'Mostly overnight hours', 'moon'], ['Rotating shifts', 'Different shifts across the week', 'rotate']];
+    const patterns = [['Day shifts', 'Mostly daytime hours', 'sun'], ['Night shifts', 'Mostly overnight hours', 'moon'], ['Rotating shifts', 'Different shifts across the week', 'shiftCycle']];
     return `${progress(1)}<p class="eyebrow">FIRST, A LITTLE ABOUT YOU</p><h1>What kind of shifts do you work?</h1><p class="subhead">We’ll shape your preview around the way you work.</p>${patterns.map(([name, detail, iconName]) => `<button class="option ${state.workPattern === name ? 'selected' : ''}" data-select-pattern="${name}"><span class="option-copy"><span class="option-icon">${icon(iconName, 14)}</span><span><strong>${name}</strong><small>${detail}</small></span></span><span class="radio"></span></button>`).join('')}<p class="helper">We’ll use your upcoming shifts to time your sleep and recovery guidance.</p><button class="btn" data-action="next">Continue <span>${icon('arrow', 12)}</span></button><button class="btn ghost" data-action="back">← Back</button>`;
   }
   if (state.step === 2) {
-    const methods = [['Connect your calendar', 'Automatically import your upcoming shifts.', 'calendar'], ['Enter shifts manually', 'Add shifts yourself, one by one.', 'plus'], ['Upload a schedule', 'Upload your photo, screenshot, PDF, spreadsheet or WhatsApp screenshot.', 'upload']];
+    const methods = [['Connect your calendar', 'Automatically import your upcoming shifts.', 'calendarAdd'], ['Enter shifts manually', 'Add shifts yourself, one by one.', 'pencil'], ['Upload a schedule', 'Upload your photo, screenshot, PDF, spreadsheet or WhatsApp screenshot.', 'imageUpload']];
     return `${progress(2)}<p class="eyebrow">YOUR PLAN STARTS HERE</p><h1>Add your upcoming shifts.</h1><p class="subhead">Choose how you received your schedule.</p>${methods.map(([name, detail, iconName]) => `<button class="option ${state.rosterMethod === name ? 'selected' : ''}" data-select-method="${name}"><span class="option-copy"><span class="option-icon">${icon(iconName, 14)}</span><span><strong>${name}</strong><small>${detail}</small></span></span><span class="radio"></span></button>`).join('')}<p class="helper">You’ll review every shift before it appears in your plan.</p><button class="btn" data-action="next">Continue <span>${icon('arrow', 12)}</span></button><button class="btn ghost" data-action="back">← Back</button>`;
   }
-  return `${progress(3)}<p class="eyebrow">YOUR NEXT FEW SHIFTS</p><h1>Make it yours.</h1><p class="subhead">Choose a shift to cycle its type, or add another shift. You can update this later.</p><div class="roster-rows">${state.shifts.slice(3).map((shift, i) => shiftEditor(shift, i)).join('')}</div><button class="btn secondary roster-add" data-action="add-row">${icon('plus', 15)} Add another shift</button><div class="card total-card"><p class="eyebrow">ROSTER TOTAL</p><strong>24h scheduled this week</strong></div><button class="btn" data-action="next">Build my plan <span>${icon('arrow', 17)}</span></button><button class="btn ghost" data-action="back">${icon('arrowLeft', 16)} Back</button>`;
+  return `${progress(3)}<p class="eyebrow">YOUR NEXT FEW SHIFTS</p><h1>Make it yours.</h1><p class="subhead">Choose a shift to cycle its type, or add another shift. You can update this later.</p><div class="roster-rows">${state.shifts.slice(3).map((shift, i) => shiftEditor(shift, i)).join('')}</div><button class="btn secondary roster-add" data-action="add-row">${icon('plus', 15)} Add another shift</button><div class="card total-card"><p class="eyebrow">ROSTER TOTAL</p><strong>${rosterHours()}h scheduled this week</strong></div><button class="btn" data-action="next">Build my plan <span>${icon('arrow', 17)}</span></button><button class="btn ghost" data-action="back">${icon('arrowLeft', 16)} Back</button>`;
+}
+
+function rosterHours() {
+  return state.shifts.slice(3).reduce((sum, shift) => sum + (shift.type === 'Off' || shift.type === 'Sick' ? 0 : Number(shift.hours ?? 12)), 0);
 }
 
 function shiftEditor(shift, i) {
   const isToday = shift.date === '15';
-  return `<button class="shift-row editable-shift ${isToday ? 'roster-today' : ''}" data-action="cycle-shift"><span class="date-badge">${isToday ? '<em>TODAY</em>' : ''}<span>${escapeHtml(shift.short)}</span><strong>${escapeHtml(shift.date)}</strong></span><span class="roster-shift-name"><strong>${escapeHtml(shift.title)}</strong><small>${shift.type === 'Off' ? '–' : escapeHtml(shift.time)}</small></span><span class="pill ${shift.type === 'Night Shift' ? 'dark' : shift.type === 'Off' ? 'off' : 'aqua'}">${shift.type === 'Off' ? 'DAY OFF' : shift.type === 'Night Shift' ? `${icon('moon', 14)} Night` : `${icon('sun', 14)} Day`}</span>${shift.type === 'Off' ? '' : '<span class="tiny-hours">12h</span>'}</button>`;
+  const displayTitle = shift.type === 'Off' ? 'Day Off' : shift.type === 'Night Shift' ? 'Night Shift' : 'Day Shift';
+  return `<div class="shift-row editable-shift ${isToday ? 'roster-today' : ''}"><button class="roster-cycle" data-action="cycle-shift" aria-label="Change ${escapeHtml(shift.short)} ${escapeHtml(shift.date)} shift type"><span class="date-badge">${isToday ? '<em>TODAY</em>' : ''}<span>${escapeHtml(shift.short)}</span><strong>${escapeHtml(shift.date)}</strong></span><span class="roster-shift-name"><strong>${displayTitle}</strong><small>${shift.type === 'Off' ? '–' : escapeHtml(shift.time)}</small></span><span class="pill ${shift.type === 'Night Shift' ? 'dark' : shift.type === 'Off' ? 'off' : 'aqua'}">${shift.type === 'Off' ? 'DAY OFF' : shift.type === 'Night Shift' ? `${icon('moon', 14)} Night` : `${icon('sun', 14)} Day`}</span></button>${shift.type === 'Off' ? '' : `<button class="hours-button" data-action="cycle-hours" data-date="${shift.date}" aria-label="Change shift hours; currently ${shift.hours ?? 12} hours">${shift.hours ?? 12}h</button>`}</div>`;
 }
 
 function timeline() {
@@ -98,11 +107,12 @@ function today() {
 function weekCalendar() {
   return state.shifts.slice(0, 5).map((shift) => {
     const selected = state.selectedDate === shift.date;
+    const isToday = shift.date === '15';
     const past = Number(shift.date) < Number(state.selectedDate);
     const type = shift.type === 'Night Shift' ? 'night' : shift.type === 'Day Shift' ? 'day' : shift.type === 'Sick' ? 'sick' : 'off';
     const statusIcon = type === 'night' ? 'moon' : type === 'day' ? 'sun' : type === 'sick' ? 'heart' : 'circle';
     const statusName = type === 'night' ? 'Night' : type === 'day' ? 'Day' : type === 'sick' ? 'Sick' : 'Off';
-    return `<button class="schedule-row ${selected ? 'selected' : ''}" data-select-day="${shift.date}"><span class="schedule-date">${selected ? '<span class="today-mark">TODAY</span>' : ''}<span class="weekday ${past ? 'past-day' : ''}">${shift.short}</span><strong>${Number(shift.date)}</strong></span><span class="schedule-label"><strong>${shift.type === 'Off' ? 'Day Off' : shift.title}</strong><small>${shift.time.replaceAll(' – ', '–')}</small></span><span class="shift-kind ${type}">${icon(statusIcon, 14)} ${statusName}</span><span class="duration-pill">12h</span></button>`;
+    return `<button class="schedule-row ${selected ? 'selected' : ''}" data-select-day="${shift.date}"><span class="schedule-date">${isToday ? '<span class="today-mark">TODAY</span>' : ''}<span class="weekday ${past ? 'past-day' : ''}">${shift.short}</span><strong>${Number(shift.date)}</strong></span><span class="schedule-label"><strong>${shift.type === 'Off' ? 'Day Off' : shift.title}</strong><small>${shift.time.replaceAll(' – ', '–')}</small></span><span class="shift-kind ${type}">${icon(statusIcon, 14)} ${statusName}</span><span class="duration-pill">${shift.type === 'Off' ? '–' : `${shift.hours ?? 12}h`}</span></button>`;
   }).join('');
 }
 
@@ -113,7 +123,7 @@ function monthCalendar() {
     const outside = currentDate < 1 || currentDate > 31;
     if (outside) return `<span class="calendar-blank">·</span>`;
     const dateStr = String(currentDate).padStart(2, '0');
-    const shift = state.shifts.find((item) => item.date === dateStr);
+    const shift = state.shifts.find((item) => item.date === dateStr) || (dateStr === '11' ? { type: 'Day Shift' } : null);
     const type = shift?.type === 'Day Shift' ? 'day' : shift?.type === 'Night Shift' ? 'night' : shift?.type === 'Sick' ? 'sick' : shift?.type === 'Off' ? 'off' : '';
     const marker = type ? `<span class="day-marker ${type}">${type === 'day' ? 'D' : type === 'night' ? 'N' : type === 'sick' ? 'S' : 'O'}</span>` : '';
     return `<button class="day-cell ${state.selectedDate === dateStr ? 'selected' : ''}" data-select-day="${dateStr}"><span>${currentDate}</span>${marker}</button>`;
@@ -243,7 +253,9 @@ root.addEventListener('click', (event) => {
   }
   if (action === 'back') { if (state.step > 0) state.step -= 1; render(); return; }
   if (action === 'add-row') {
-    state.shifts.push({ short: 'SUN', date: '19', title: 'Night shift', time: '19:00 – 07:30', type: 'Night Shift' });
+    const nextDate = Math.max(...state.shifts.map((item) => Number(item.date))) + 1;
+    const weekDay = new Intl.DateTimeFormat('en', { weekday: 'short' }).format(new Date(2026, 9, nextDate)).toUpperCase();
+    state.shifts.push({ short: weekDay, date: String(nextDate).padStart(2, '0'), title: 'Night shift', time: '19:00 – 07:30', type: 'Night Shift', hours: 12 });
     render(); return;
   }
   if (action === 'add-shift') { state.page = 'AddShift'; state.tab = 'Schedule'; render(); return; }
@@ -252,9 +264,22 @@ root.addEventListener('click', (event) => {
     const index = [...root.querySelectorAll('.editable-shift')].indexOf(row);
     const shift = state.shifts.slice(3)[index];
     if (shift) {
-      if (shift.type === 'Night Shift') Object.assign(shift, { title: 'Day Off', time: 'Recovery day', type: 'Off' });
-      else if (shift.type === 'Off') Object.assign(shift, { title: 'Day shift', time: '07:00 – 19:00', type: 'Day Shift' });
-      else Object.assign(shift, { title: 'Night shift', time: '19:00 – 07:30', type: 'Night Shift' });
+      if (shift.type === 'Night Shift') Object.assign(shift, { title: 'Day Off', time: 'Recovery day', type: 'Off', hours: 0 });
+      else if (shift.type === 'Off') Object.assign(shift, { title: 'Day shift', time: '07:00 – 19:00', type: 'Day Shift', hours: 12 });
+      else Object.assign(shift, { title: 'Night shift', time: '19:00 – 07:30', type: 'Night Shift', hours: shift.hours || 12 });
+      render();
+    }
+    return;
+  }
+  if (action === 'cycle-hours') {
+    const shift = state.shifts.find((item) => item.date === target.dataset.date);
+    if (shift) {
+      const choices = [8, 10, 12, 14];
+      shift.hours = choices[(choices.indexOf(Number(shift.hours ?? 12)) + 1) % choices.length];
+      const start = shift.type === 'Night Shift' ? 19 : 7;
+      const end = (start + shift.hours) % 24;
+      const fmt = (hour) => `${String(hour).padStart(2, '0')}:00`;
+      shift.time = `${fmt(start)} – ${fmt(end)}`;
       render();
     }
     return;
